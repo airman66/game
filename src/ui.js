@@ -1,10 +1,11 @@
-// Экраны, HUD, гараж. Вся разметка — в index.html, здесь только логика.
+// Экраны, HUD, гараж, задания, рекорды, настройки. Разметка — в index.html.
 
 import * as THREE from 'three';
 import { spawnModel, CAR_IDS } from './assets.js';
-import { t, carName } from './i18n.js';
+import { t, carName, crashPhrase, buyJoke, missionText } from './i18n.js';
 import { getSave, updateSave, flushSave } from './save.js';
-import { sfx, setSoundEnabled, isSoundEnabled, unlockAudio, startMusic } from './audio.js';
+import { sfx } from './audio.js';
+import { getMissions } from './missions.js';
 
 export const CAR_PRICES = {
   'sedan-sports': 0, 'hatchback-sports': 300, suv: 600, taxi: 1000, van: 1500,
@@ -14,7 +15,10 @@ export const CAR_PRICES = {
 
 const $ = (id) => document.getElementById(id);
 
-const screens = ['screen-loading', 'screen-menu', 'screen-garage', 'hud', 'screen-pause', 'screen-gameover'];
+const screens = [
+  'screen-loading', 'screen-menu', 'screen-garage', 'hud', 'screen-pause',
+  'screen-gameover', 'screen-missions', 'screen-leaderboard', 'screen-settings',
+];
 
 export function showScreens(...names) {
   for (const s of screens) {
@@ -34,11 +38,23 @@ let toastTimer = 0;
 export const hud = {
   setScore(score) { $('hud-score').textContent = score; },
   setCoins(c) { $('hud-coins').textContent = c; },
-  toast(key, pts) {
+  setSpeed(unitsPerSec) { $('hud-speed').textContent = Math.round(unitsPerSec * 3.6); },
+  setTimer(sec, on) {
+    const el = $('hud-timer');
+    el.classList.toggle('on', on);
+    if (on) {
+      el.textContent = Math.ceil(sec);
+      el.classList.toggle('urgent', sec <= 5.5);
+    }
+  },
+  toast(key, pts, combo) {
     const el = $('hud-toast');
-    el.textContent = t(key) + (pts ? ` +${pts}` : '');
+    let text = t(key);
+    if (combo && combo > 1) text += ` x${combo}`;
+    if (pts) text += ` +${pts}`;
+    el.textContent = text;
     el.classList.remove('show');
-    void el.offsetWidth; // перезапуск CSS-анимации
+    void el.offsetWidth;
     el.classList.add('show');
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => el.classList.remove('show'), 950);
@@ -53,29 +69,40 @@ export const hud = {
     if (bar._last !== html) { bar.innerHTML = html; bar._last = html; }
     $('hud-mult').classList.toggle('on', x2 > 0);
   },
+  setNitro(value, active) {
+    const btn = $('btn-nitro');
+    const ready = value >= 100;
+    btn.classList.toggle('ready', ready && !active);
+    btn.classList.toggle('active', active);
+    const deg = Math.round(value * 3.6);
+    btn.style.background = active
+      ? 'radial-gradient(circle, rgba(53,224,255,0.4), rgba(10,14,34,0.7))'
+      : `conic-gradient(rgba(255,176,32,0.85) ${deg}deg, rgba(10,14,34,0.65) ${deg}deg)`;
+    $('vignette').classList.toggle('on', active);
+  },
+  setMobileButtons(isMobile) {
+    // Нитро-кнопка — это ещё и индикатор шкалы, видна всегда
+    $('btn-nitro').classList.add('on');
+    $('btn-horn').classList.toggle('on', isMobile);
+  },
 };
 
 // ---------- Меню ----------
+
+let menuToastTimer = 0;
 
 export function refreshMenu() {
   const save = getSave();
   $('menu-best-value').textContent = save.best;
   $('menu-coins-value').textContent = save.coins;
-  updateSoundButton();
 }
 
-function updateSoundButton() {
-  $('btn-sound').textContent = isSoundEnabled() ? '🔊' : '🔇';
-}
-
-export function bindSoundButton() {
-  $('btn-sound').addEventListener('click', () => {
-    const on = !isSoundEnabled();
-    setSoundEnabled(on);
-    updateSave({ sound: on });
-    updateSoundButton();
-    if (on) sfx.click();
-  });
+export function menuToast(text) {
+  const el = $('menu-toast');
+  el.textContent = text;
+  el.classList.add('show');
+  clearTimeout(menuToastTimer);
+  menuToastTimer = setTimeout(() => el.classList.remove('show'), 3200);
 }
 
 export function setMenuHint(isMobileDevice) {
@@ -160,6 +187,8 @@ export function buildGarage(onSelect) {
         });
         flushSave();
         sfx.powerup();
+        const joke = buyJoke(id);
+        if (joke) menuToast(joke);
         onSelect(id);
         buildGarage(onSelect);
       } else {
@@ -176,26 +205,106 @@ export function buildGarage(onSelect) {
   }
 }
 
+// ---------- Задания ----------
+
+const MISSION_ICONS = {
+  coins_run: '🪙', dist_run: '🛣', near_run: '⚡', overtake_run: '🚗',
+  cones_total: '🚧', nitro_total: '🔥', ram_total: '💥', time_run: '⏱',
+};
+
+export function buildMissions() {
+  const list = $('missions-list');
+  list.innerHTML = '';
+  for (const m of getMissions()) {
+    const card = document.createElement('div');
+    card.className = 'mission-card';
+    const pct = Math.min(100, Math.round((m.progress / m.goal) * 100));
+    card.innerHTML = `
+      <div class="mission-text">
+        <span>${MISSION_ICONS[m.type] ?? '🎯'} ${missionText(m.type, m.goal)}</span>
+        <span class="mission-reward">+${m.reward}</span>
+      </div>
+      <div class="mission-track"><div class="mission-fill" style="width:${pct}%"></div></div>
+      <div class="mission-progress">${Math.floor(m.progress)} / ${m.goal}</div>
+    `;
+    list.append(card);
+  }
+}
+
+// ---------- Рекорды ----------
+
+export function buildLeaderboard(entries) {
+  const list = $('lb-list');
+  list.innerHTML = '';
+  if (!entries) {
+    list.innerHTML = `<div class="lb-empty">${t('lbUnavailable')}</div>`;
+    return;
+  }
+  if (!entries.length) {
+    list.innerHTML = `<div class="lb-empty">${t('lbEmpty')}</div>`;
+    return;
+  }
+  for (const e of entries) {
+    const row = document.createElement('div');
+    row.className = 'lb-row' + (e.isUser ? ' me' : '') + (e.rank <= 3 ? ` top${e.rank}` : '');
+    const medal = e.rank === 1 ? '🥇' : e.rank === 2 ? '🥈' : e.rank === 3 ? '🥉' : e.rank;
+    row.innerHTML = `
+      <span class="lb-rank">${medal}</span>
+      <span class="lb-name">${escapeHtml(e.isUser ? t('you') : (e.name || 'Player'))}</span>
+      <span class="lb-score">${e.score}</span>
+    `;
+    list.append(row);
+  }
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// ---------- Настройки ----------
+
+export function refreshSettings() {
+  const s = getSave();
+  $('tgl-sound').classList.toggle('on', !!s.sound);
+  $('tgl-music').classList.toggle('on', !!s.music);
+  $('tgl-vibro').classList.toggle('on', !!s.vibro);
+  $('tgl-quality').textContent = s.quality === 'low' ? t('qLow') : t('qAuto');
+}
+
 // ---------- Игра окончена ----------
 
-export function showGameOver({ score, coins, best, isRecord, canRevive }) {
+export function showGameOver({ score, coins, best, isRecord, canRevive, canDouble, reason }) {
+  $('go-title').textContent = t(reason === 'time' ? 'timeUp' : 'crash');
+  $('go-phrase').textContent = reason === 'time' ? '' : crashPhrase();
   $('go-score').textContent = score;
   $('go-best').textContent = best;
   $('go-coins').textContent = coins;
   $('go-newrecord').classList.toggle('show', isRecord);
   $('btn-revive').classList.toggle('hidden', !canRevive);
+  $('btn-x2coins').classList.toggle('hidden', !canDouble);
   showScreens('screen-gameover', 'hud');
-  if (isRecord) sfx.record();
+  if (isRecord) {
+    sfx.record();
+    spawnConfetti();
+  }
 }
 
-// Первый жест пользователя — разблокируем аудио и включаем музыку
-export function armAudioUnlock() {
-  const unlock = () => {
-    unlockAudio();
-    startMusic();
-    window.removeEventListener('pointerdown', unlock);
-    window.removeEventListener('keydown', unlock);
-  };
-  window.addEventListener('pointerdown', unlock);
-  window.addEventListener('keydown', unlock);
+export function updateGameOverCoins(coins) {
+  $('go-coins').textContent = coins;
+  $('btn-x2coins').classList.add('hidden');
+}
+
+function spawnConfetti() {
+  const box = $('confetti');
+  box.innerHTML = '';
+  const colors = ['#ffb020', '#ff4d6d', '#35e0ff', '#7ee081', '#ffe259'];
+  for (let i = 0; i < 60; i++) {
+    const s = document.createElement('span');
+    s.style.left = `${Math.random() * 100}%`;
+    s.style.background = colors[i % colors.length];
+    s.style.animationDuration = `${1.6 + Math.random() * 1.8}s`;
+    s.style.animationDelay = `${Math.random() * 0.7}s`;
+    s.style.transform = `scale(${0.6 + Math.random() * 0.8})`;
+    box.append(s);
+  }
 }

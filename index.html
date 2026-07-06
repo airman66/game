@@ -10,6 +10,7 @@
 </head>
 <body>
   <canvas id="game-canvas"></canvas>
+  <div id="vignette"></div>
 
   <!-- Экран загрузки -->
   <div id="screen-loading" class="screen visible">
@@ -25,14 +26,23 @@
     <div class="menu-top">
       <div class="stat-chip" id="menu-best"><span class="chip-icon">&#127942;</span><span id="menu-best-value">0</span></div>
       <div class="stat-chip" id="menu-coins"><span class="chip-icon coin-icon"></span><span id="menu-coins-value">0</span></div>
-      <button id="btn-sound" class="icon-btn" aria-label="sound"></button>
+      <button id="btn-settings" class="icon-btn" aria-label="settings">&#9881;</button>
     </div>
     <div class="menu-center">
-      <div class="game-logo"><span class="logo-turbo">TURBO</span><span class="logo-traffic">TRAFFIC</span><span class="logo-3d">3D</span></div>
+      <div class="game-logo" id="menu-logo"><span class="logo-turbo">TURBO</span><span class="logo-traffic">TRAFFIC</span><span class="logo-3d">3D</span></div>
       <button id="btn-play" class="big-btn play-btn"><span data-i18n="play"></span></button>
-      <button id="btn-garage" class="mid-btn"><span class="chip-icon">&#128663;</span> <span data-i18n="garage"></span></button>
+      <div class="mode-row">
+        <button id="btn-sprint" class="mode-btn"><span class="mode-ico">&#9201;</span><span data-i18n="modeSprint"></span></button>
+        <button id="btn-rampage" class="mode-btn"><span class="mode-ico">&#128165;</span><span data-i18n="modeRampage"></span></button>
+      </div>
+      <div class="mode-row">
+        <button id="btn-garage" class="mode-btn"><span class="mode-ico">&#128663;</span><span data-i18n="garage"></span></button>
+        <button id="btn-missions" class="mode-btn badge-holder"><span class="mode-ico">&#128203;</span><span data-i18n="missions"></span></button>
+        <button id="btn-leaderboard" class="mode-btn"><span class="mode-ico">&#127942;</span><span data-i18n="leaderboard"></span></button>
+      </div>
     </div>
     <div class="menu-hint" id="menu-hint"></div>
+    <div id="menu-toast" class="menu-toast"></div>
   </div>
 
   <!-- Гараж -->
@@ -42,13 +52,48 @@
       <h2 data-i18n="garage"></h2>
       <div class="stat-chip"><span class="chip-icon coin-icon"></span><span id="garage-coins-value">0</span></div>
     </div>
+    <button id="btn-garage-ad" class="mid-btn ad-btn"><span class="ad-badge">AD</span> <span data-i18n="freeCoins"></span></button>
     <div id="garage-grid" class="garage-grid"></div>
+  </div>
+
+  <!-- Задания -->
+  <div id="screen-missions" class="screen overlay">
+    <div class="panel">
+      <h2 data-i18n="missions"></h2>
+      <div id="missions-list" class="missions-list"></div>
+      <button id="btn-missions-back" class="mid-btn"><span data-i18n="toMenu"></span></button>
+    </div>
+  </div>
+
+  <!-- Рекорды -->
+  <div id="screen-leaderboard" class="screen overlay">
+    <div class="panel">
+      <h2 data-i18n="leaderboard"></h2>
+      <div id="lb-list" class="lb-list"></div>
+      <button id="btn-lb-back" class="mid-btn"><span data-i18n="toMenu"></span></button>
+    </div>
+  </div>
+
+  <!-- Настройки -->
+  <div id="screen-settings" class="screen overlay">
+    <div class="panel">
+      <h2 data-i18n="settings"></h2>
+      <div class="setting-row"><span data-i18n="sndSound"></span><button id="tgl-sound" class="toggle"></button></div>
+      <div class="setting-row"><span data-i18n="sndMusic"></span><button id="tgl-music" class="toggle"></button></div>
+      <div class="setting-row"><span data-i18n="sndVibro"></span><button id="tgl-vibro" class="toggle"></button></div>
+      <div class="setting-row"><span data-i18n="sndQuality"></span><button id="tgl-quality" class="toggle-text"></button></div>
+      <button id="btn-settings-back" class="mid-btn"><span data-i18n="toMenu"></span></button>
+    </div>
   </div>
 
   <!-- HUD -->
   <div id="hud" class="screen hud">
     <div class="hud-top">
-      <div class="hud-score"><span id="hud-score">0</span></div>
+      <div class="hud-left">
+        <div class="hud-score"><span id="hud-score">0</span></div>
+        <div class="hud-speed"><span id="hud-speed">0</span> <span class="hud-speed-unit">km/h</span></div>
+        <div id="hud-timer" class="hud-timer">90</div>
+      </div>
       <div class="hud-right">
         <div class="stat-chip small"><span class="chip-icon coin-icon"></span><span id="hud-coins">0</span></div>
         <button id="btn-pause" class="icon-btn">&#10074;&#10074;</button>
@@ -57,6 +102,8 @@
     <div id="hud-mult" class="hud-mult">x2</div>
     <div id="hud-toast" class="hud-toast"></div>
     <div id="powerup-bar" class="powerup-bar"></div>
+    <button id="btn-horn" class="round-btn horn-btn">&#128226;</button>
+    <button id="btn-nitro" class="round-btn nitro-btn"><span>&#128293;</span></button>
   </div>
 
   <!-- Пауза -->
@@ -70,13 +117,16 @@
 
   <!-- Игра окончена -->
   <div id="screen-gameover" class="screen overlay">
+    <div id="confetti" class="confetti"></div>
     <div class="panel">
-      <h2 data-i18n="crash"></h2>
+      <h2 id="go-title" data-i18n="crash"></h2>
+      <div id="go-phrase" class="go-phrase"></div>
       <div class="result-row"><span data-i18n="score"></span><b id="go-score">0</b></div>
       <div class="result-row"><span data-i18n="best"></span><b id="go-best">0</b></div>
       <div class="result-row"><span data-i18n="coinsEarned"></span><b id="go-coins">0</b></div>
       <div id="go-newrecord" class="new-record" data-i18n="newRecord"></div>
       <button id="btn-revive" class="big-btn revive-btn"><span class="ad-badge">AD</span> <span data-i18n="revive"></span></button>
+      <button id="btn-x2coins" class="mid-btn ad-btn"><span class="ad-badge">AD</span> <span data-i18n="doubleCoins"></span></button>
       <button id="btn-restart" class="big-btn play-btn"><span data-i18n="restart"></span></button>
       <button id="btn-gameover-menu" class="mid-btn"><span data-i18n="toMenu"></span></button>
     </div>

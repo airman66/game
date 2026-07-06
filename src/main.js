@@ -1,21 +1,32 @@
-// Точка входа: инициализация SDK Яндекс Игр, загрузка ассетов, игровой цикл, ввод.
+// Точка входа: SDK Яндекс Игр, загрузка, игровой цикл, ввод, реклама, жизненный цикл.
 
 import './style.css';
 import * as ysdk from './yandex.js';
-import { setLanguage } from './i18n.js';
+import { setLanguage, t } from './i18n.js';
 import { loadAssets } from './assets.js';
 import { initSave, getSave, updateSave, flushSave } from './save.js';
-import { createGame } from './game.js';
+import { createGame, MODES } from './game.js';
+import { initMissions, applyRunStats } from './missions.js';
 import * as ui from './ui.js';
-import { sfx, setSoundEnabled, suspendAudio, resumeAudio, stopMusic, startMusic } from './audio.js';
+import {
+  sfx, setSoundEnabled, setMusicEnabled, suspendAudio, resumeAudio,
+  unlockAudio, playMusic, preloadAudioFiles,
+} from './audio.js';
 
 const canvas = document.getElementById('game-canvas');
 let game = null;
 let adActive = false;
-let uiState = 'loading'; // loading | menu | garage | running | paused | over
+let uiState = 'loading'; // loading | menu | garage | missions | leaderboard | settings | running | paused | over
+let coinsDoubled = false;
+let lastRunCoins = 0;
+let lastGarageAdAt = 0;
+
+function vibrate(ms) {
+  if (!getSave().vibro) return;
+  try { navigator.vibrate?.(ms); } catch (e) { /* noop */ }
+}
 
 async function boot() {
-  // SDK и ассеты грузим параллельно; сбой SDK не блокирует игру
   const sdkPromise = ysdk.initSDK().catch(() => null);
   await loadAssets((p) => ui.setLoadingProgress(p * 0.9));
   await sdkPromise;
@@ -23,35 +34,65 @@ async function boot() {
 
   setLanguage(ysdk.getLanguage());
   await initSave();
+  initMissions();
   ui.setLoadingProgress(1);
 
   const save = getSave();
   setSoundEnabled(save.sound);
+  setMusicEnabled(save.music);
 
   game = createGame(canvas, {
-    onScore: (score) => ui.hud.setScore(score),
+    onScore: (score, speed) => { ui.hud.setScore(score); ui.hud.setSpeed(speed); },
     onCoins: (c) => ui.hud.setCoins(c),
-    onToast: (key, pts) => ui.hud.toast(key, pts),
+    onToast: (key, pts, combo) => ui.hud.toast(key, pts, combo),
     onPowerups: (p) => ui.hud.setPowerups(p),
+    onNitro: (v, active) => ui.hud.setNitro(v, active),
+    onNitroState: (on) => { if (!on) ui.hud.setNitro(0, false); },
+    onTimer: (sec) => ui.hud.setTimer(sec, true),
+    onVibrate: (ms) => vibrate(ms),
     onRunStart: () => ysdk.gameplayStart(),
     onCrash: () => ysdk.gameplayStop(),
     onGameOver: handleGameOver,
   });
   game.setPlayerCar(save.selectedCar);
+  if (save.quality === 'low') game.world.setQuality('low');
 
   bindUI();
   bindInput();
   bindLifecycle();
-  ui.armAudioUnlock();
+  armAudioUnlock();
 
   goMenu(false);
   requestAnimationFrame(tick);
 
-  // Обязательный сигнал Яндекс Играм: игра загружена и готова
+  // Обязательный сигнал: игра готова
   ysdk.loadingReady();
+
+  // Музыка и звуковые файлы грузятся в фоне, не задерживая старт
+  preloadAudioFiles();
+
+  checkDailyBonus();
 }
 
-// ---------- Переходы между экранами ----------
+// ---------- Ежедневный бонус ----------
+
+function checkDailyBonus() {
+  const save = getSave();
+  const today = new Date().toISOString().slice(0, 10);
+  if (save.lastDaily === today) return;
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const streak = save.lastDaily === yesterday ? Math.min(save.dailyStreak + 1, 7) : 1;
+  const reward = 40 + streak * 30;
+  updateSave({ lastDaily: today, dailyStreak: streak, coins: save.coins + reward });
+  flushSave();
+  setTimeout(() => {
+    ui.menuToast('🎁 ' + t('dailyBonus', { n: streak, r: reward }));
+    sfx.daily();
+    ui.refreshMenu();
+  }, 800);
+}
+
+// ---------- Переходы ----------
 
 function goMenu(withAd = true) {
   uiState = 'menu';
@@ -60,16 +101,25 @@ function goMenu(withAd = true) {
   ui.refreshMenu();
   ui.setMenuHint(ysdk.isMobile());
   ui.showScreens('screen-menu');
+  playMusic('menu');
+  ysdk.showBanner();
   if (withAd) maybeInterstitial();
 }
 
-function startRun() {
+function startRun(modeId) {
   uiState = 'running';
+  coinsDoubled = false;
   ui.hud.setScore(0);
   ui.hud.setCoins(0);
+  ui.hud.setSpeed(0);
+  ui.hud.setNitro(0, false);
   ui.hud.setPowerups({ magnet: 0, x2: 0, shield: false });
+  ui.hud.setTimer(0, (MODES[modeId]?.time ?? 0) > 0);
+  ui.hud.setMobileButtons(ysdk.isMobile());
   ui.showScreens('hud');
-  game.startRun();
+  ysdk.hideBanner();
+  playMusic(MODES[modeId]?.music ?? 'race1');
+  game.startRun(modeId);
 }
 
 function pauseGame() {
@@ -88,17 +138,35 @@ function resumeGame() {
   ysdk.gameplayStart();
 }
 
-function handleGameOver({ score, coins, canRevive }) {
+function handleGameOver({ score, coins, canRevive, reason, stats }) {
   uiState = 'over';
+  lastRunCoins = coins;
   const save = getSave();
   const isRecord = score > save.best;
-  updateSave({
-    best: Math.max(save.best, score),
-    coins: save.coins + coins,
-  });
+  const newBest = Math.max(save.best, score);
+  updateSave({ best: newBest, coins: save.coins + coins });
+
+  // Задания: прогресс и награды
+  const completed = applyRunStats(stats);
   flushSave();
-  ysdk.submitScore(Math.max(save.best, score));
-  ui.showGameOver({ score, coins, best: Math.max(save.best, score), isRecord, canRevive });
+  ysdk.submitScore(newBest);
+  ysdk.gameplayStop();
+  ysdk.showBanner();
+
+  ui.showGameOver({
+    score, coins, best: newBest, isRecord, canRevive,
+    canDouble: coins > 0, reason,
+  });
+  if (completed.length) {
+    let delay = 600;
+    for (const m of completed) {
+      setTimeout(() => {
+        ui.menuToast('✅ ' + t('missionDone', { r: m.reward }));
+        sfx.missionDone();
+      }, delay);
+      delay += 2400;
+    }
+  }
 }
 
 // ---------- Реклама ----------
@@ -115,7 +183,6 @@ const adCallbacks = {
 };
 
 function maybeInterstitial() {
-  // Показ в естественной паузе (переход в меню / рестарт), не чаще кулдауна
   ysdk.showInterstitial(adCallbacks);
 }
 
@@ -124,50 +191,165 @@ function maybeInterstitial() {
 function bindUI() {
   const on = (id, fn) => document.getElementById(id).addEventListener('click', () => { sfx.click(); fn(); });
 
-  on('btn-play', () => startRun());
+  on('btn-play', () => startRun('classic'));
+  on('btn-sprint', () => startRun('sprint'));
+  on('btn-rampage', () => startRun('rampage'));
+
   on('btn-garage', () => {
     uiState = 'garage';
     ui.buildGarage((carId) => game.setPlayerCar(carId));
     ui.showScreens('screen-garage');
   });
   on('btn-garage-back', () => goMenu(false));
+  on('btn-garage-ad', async () => {
+    if (Date.now() - lastGarageAdAt < 120_000) return; // защита от спама
+    const ok = await ysdk.showRewarded(adCallbacks);
+    if (ok) {
+      lastGarageAdAt = Date.now();
+      updateSave({ coins: getSave().coins + 250 });
+      flushSave();
+      sfx.daily();
+      ui.buildGarage((carId) => game.setPlayerCar(carId));
+    }
+  });
+
+  on('btn-missions', () => {
+    uiState = 'missions';
+    ui.buildMissions();
+    ui.showScreens('screen-menu', 'screen-missions');
+  });
+  on('btn-missions-back', () => goMenu(false));
+
+  on('btn-leaderboard', async () => {
+    uiState = 'leaderboard';
+    ui.buildLeaderboard([]);
+    ui.showScreens('screen-menu', 'screen-leaderboard');
+    const entries = await ysdk.getLeaderboardTop();
+    if (uiState === 'leaderboard') ui.buildLeaderboard(entries);
+  });
+  on('btn-lb-back', () => goMenu(false));
+
+  on('btn-settings', () => {
+    uiState = 'settings';
+    ui.refreshSettings();
+    ui.showScreens('screen-menu', 'screen-settings');
+  });
+  on('btn-settings-back', () => goMenu(false));
+  on('tgl-sound', () => {
+    const v = !getSave().sound;
+    updateSave({ sound: v });
+    setSoundEnabled(v);
+    ui.refreshSettings();
+  });
+  on('tgl-music', () => {
+    const v = !getSave().music;
+    updateSave({ music: v });
+    setMusicEnabled(v);
+    ui.refreshSettings();
+  });
+  on('tgl-vibro', () => {
+    updateSave({ vibro: !getSave().vibro });
+    vibrate(30);
+    ui.refreshSettings();
+  });
+  on('tgl-quality', () => {
+    const v = getSave().quality === 'low' ? 'auto' : 'low';
+    updateSave({ quality: v });
+    game.world.setQuality(v === 'low' ? 'low' : 'high');
+    ui.refreshSettings();
+  });
+
   on('btn-pause', () => pauseGame());
   on('btn-resume', () => resumeGame());
   on('btn-exit-menu', () => goMenu(true));
   on('btn-gameover-menu', () => goMenu(true));
   on('btn-restart', async () => {
+    const modeId = game.state.modeId;
     await ysdk.showInterstitial(adCallbacks);
-    startRun();
+    startRun(modeId);
   });
   on('btn-revive', async () => {
     const rewarded = await ysdk.showRewarded(adCallbacks);
     if (rewarded && uiState === 'over') {
       uiState = 'running';
       ui.showScreens('hud');
+      ysdk.hideBanner();
       game.revive();
     }
   });
-  ui.bindSoundButton();
+  on('btn-x2coins', async () => {
+    if (coinsDoubled || lastRunCoins <= 0) return;
+    const rewarded = await ysdk.showRewarded(adCallbacks);
+    if (rewarded && !coinsDoubled) {
+      coinsDoubled = true;
+      updateSave({ coins: getSave().coins + lastRunCoins });
+      flushSave();
+      sfx.daily();
+      ui.updateGameOverCoins(lastRunCoins * 2);
+    }
+  });
+
+  // Кнопки на HUD
+  document.getElementById('btn-nitro').addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    game?.nitro();
+  });
+  document.getElementById('btn-horn').addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    game?.horn();
+  });
 }
 
 // ---------- Ввод ----------
 
+const KONAMI = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'KeyB', 'KeyA'];
+let konamiPos = 0;
+let logoTaps = 0;
+let logoTapTimer = 0;
+
+function grantCheat() {
+  if (getSave().konami) return;
+  updateSave({ konami: true, coins: getSave().coins + 500 });
+  flushSave();
+  ui.menuToast('😎 ' + t('konami'));
+  sfx.record();
+  ui.refreshMenu();
+}
+
 function bindInput() {
   window.addEventListener('keydown', (e) => {
+    // Конами-код в меню
+    if (uiState === 'menu') {
+      konamiPos = e.code === KONAMI[konamiPos] ? konamiPos + 1 : (e.code === KONAMI[0] ? 1 : 0);
+      if (konamiPos === KONAMI.length) { konamiPos = 0; grantCheat(); }
+    }
     if (e.repeat) return;
     if (e.code === 'ArrowLeft' || e.code === 'KeyA') game?.steer(-1);
     else if (e.code === 'ArrowRight' || e.code === 'KeyD') game?.steer(1);
-    else if (e.code === 'Escape' || e.code === 'KeyP') {
+    else if (e.code === 'ArrowUp' || e.code === 'KeyW' || e.code === 'Space') {
+      if (uiState === 'running') game?.nitro();
+      else if (uiState === 'menu' && e.code !== 'ArrowUp') startRun('classic');
+    } else if (e.code === 'KeyG' || e.code === 'KeyH') {
+      if (uiState === 'running') game?.horn();
+    } else if (e.code === 'Escape' || e.code === 'KeyP') {
       if (uiState === 'running') pauseGame();
       else if (uiState === 'paused') resumeGame();
-    } else if ((e.code === 'Space' || e.code === 'Enter') && uiState === 'menu') startRun();
+    }
   });
 
-  // Свайпы: следим за pointer-жестами по всему экрану во время забега
+  // Пасхалка: 7 быстрых тапов по логотипу
+  document.getElementById('menu-logo').addEventListener('pointerdown', () => {
+    logoTaps++;
+    clearTimeout(logoTapTimer);
+    logoTapTimer = setTimeout(() => { logoTaps = 0; }, 700);
+    if (logoTaps >= 7) { logoTaps = 0; grantCheat(); }
+  });
+
+  // Свайпы: руль (гориз.) и нитро (вверх)
   let swipe = null;
   window.addEventListener('pointerdown', (e) => {
     if (uiState !== 'running' || e.target?.closest?.('button')) return;
-    swipe = { x: e.clientX, y: e.clientY };
+    swipe = { x: e.clientX, y: e.clientY, usedY: false };
   });
   window.addEventListener('pointermove', (e) => {
     if (!swipe || uiState !== 'running') return;
@@ -175,7 +357,10 @@ function bindInput() {
     const dy = e.clientY - swipe.y;
     if (Math.abs(dx) > 26 && Math.abs(dx) > Math.abs(dy) * 1.2) {
       game.steer(dx > 0 ? 1 : -1);
-      swipe = { x: e.clientX, y: e.clientY }; // повторный свайп без отрыва пальца
+      swipe = { x: e.clientX, y: e.clientY, usedY: swipe.usedY };
+    } else if (!swipe.usedY && dy < -60 && Math.abs(dy) > Math.abs(dx) * 1.4) {
+      swipe.usedY = true;
+      game.nitro();
     }
   });
   window.addEventListener('pointerup', () => { swipe = null; });
@@ -188,14 +373,25 @@ function bindLifecycle() {
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
       suspendAudio();
-      stopMusic();
       if (uiState === 'running') pauseGame();
     } else if (!adActive) {
       resumeAudio();
-      startMusic();
     }
   });
+  window.addEventListener('blur', () => {
+    if (uiState === 'running') pauseGame();
+  });
   window.addEventListener('beforeunload', () => flushSave());
+}
+
+function armAudioUnlock() {
+  const unlock = () => {
+    unlockAudio();
+    window.removeEventListener('pointerdown', unlock);
+    window.removeEventListener('keydown', unlock);
+  };
+  window.addEventListener('pointerdown', unlock);
+  window.addEventListener('keydown', unlock);
 }
 
 // ---------- Игровой цикл ----------
@@ -216,8 +412,7 @@ function tick(now) {
   game.update(dt);
   game.render();
 
-  // Автоснижение качества при стабильно низком FPS
-  if (!qualityLowered) {
+  if (!qualityLowered && getSave().quality !== 'low') {
     fpsAccum += dt;
     fpsFrames++;
     if (fpsAccum >= 3) {

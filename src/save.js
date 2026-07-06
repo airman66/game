@@ -11,6 +11,14 @@ const DEFAULTS = {
   ownedCars: ['sedan-sports'],
   selectedCar: 'sedan-sports',
   sound: true,
+  music: true,
+  vibro: true,
+  quality: 'auto', // 'auto' | 'low'
+  missions: null,
+  missionLevel: 0,
+  lastDaily: '',
+  dailyStreak: 0,
+  konami: false,
 };
 
 let state = { ...DEFAULTS };

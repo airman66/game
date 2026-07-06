@@ -137,6 +137,16 @@ export async function saveCloudData(data) {
   } catch (e) { /* noop */ }
 }
 
+// --- Sticky-баннер: показываем в меню, прячем в геймплее ---
+
+export function showBanner() {
+  try { ysdk?.adv?.showBannerAdv(); } catch (e) { /* noop */ }
+}
+
+export function hideBanner() {
+  try { ysdk?.adv?.hideBannerAdv(); } catch (e) { /* noop */ }
+}
+
 // --- Лидерборд ---
 
 export async function submitScore(score) {
@@ -145,4 +155,22 @@ export async function submitScore(score) {
     const lb = await ysdk.getLeaderboards();
     await lb.setLeaderboardScore('score', Math.floor(score));
   } catch (e) { /* игрок не авторизован или лидерборд не настроен — это ок */ }
+}
+
+export async function getLeaderboardTop() {
+  if (!ysdk) return null;
+  try {
+    const lb = await ysdk.getLeaderboards();
+    const res = await lb.getLeaderboardEntries('score', { quantityTop: 10, includeUser: true, quantityAround: 0 });
+    let myId = null;
+    try { myId = player?.getUniqueID?.() ?? null; } catch (e) { /* noop */ }
+    return (res?.entries ?? []).map((e) => ({
+      rank: e.rank,
+      name: e.player?.publicName || null,
+      score: e.score,
+      isUser: !!myId && e.player?.uniqueID === myId,
+    }));
+  } catch (e) {
+    return null;
+  }
 }

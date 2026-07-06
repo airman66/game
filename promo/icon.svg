@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#141a3d"/>
+      <stop offset="0.45" stop-color="#4b3a7a"/>
+      <stop offset="0.72" stop-color="#c65f7f"/>
+      <stop offset="1" stop-color="#ff9d6b"/>
+    </linearGradient>
+    <linearGradient id="carbody" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff7a4d"/>
+      <stop offset="1" stop-color="#e2411f"/>
+    </linearGradient>
+    <clipPath id="rounded"><rect width="512" height="512" rx="96"/></clipPath>
+  </defs>
+  <g clip-path="url(#rounded)">
+    <rect width="512" height="512" fill="url(#sky)"/>
+    <circle cx="256" cy="238" r="86" fill="#ffd9a0" opacity="0.95"/>
+    <circle cx="256" cy="238" r="118" fill="#ffd9a0" opacity="0.25"/>
+    <!-- горы -->
+    <polygon points="-30,300 90,150 210,300" fill="#2e2450"/>
+    <polygon points="290,300 410,120 540,300" fill="#241c40"/>
+    <polygon points="150,300 260,190 380,300" fill="#382a5e"/>
+    <!-- земля -->
+    <rect y="288" width="512" height="224" fill="#8a5a44"/>
+    <!-- дорога в перспективе -->
+    <polygon points="200,288 312,288 452,512 60,512" fill="#2b2f3e"/>
+    <polygon points="206,288 216,288 148,512 108,512" fill="#d8d2c4"/>
+    <polygon points="296,288 306,288 404,512 364,512" fill="#d8d2c4"/>
+    <!-- штрихи разметки -->
+    <polygon points="253,300 259,300 258,330 252,330" fill="#e8e8f0"/>
+    <polygon points="250,352 262,352 261,394 248,394" fill="#e8e8f0"/>
+    <polygon points="245,424 267,424 266,486 242,486" fill="#e8e8f0"/>
+    <!-- машина: вид сзади -->
+    <g transform="translate(256,398)">
+      <rect x="-78" y="-8" width="34" height="46" rx="10" fill="#1a1626" opacity="0.55"/>
+      <rect x="44" y="-8" width="34" height="46" rx="10" fill="#1a1626" opacity="0.55"/>
+      <rect x="-70" y="-40" width="140" height="86" rx="24" fill="url(#carbody)"/>
+      <rect x="-52" y="-64" width="104" height="46" rx="18" fill="url(#carbody)"/>
+      <rect x="-40" y="-58" width="80" height="30" rx="10" fill="#35e0ff" opacity="0.9"/>
+      <rect x="-62" y="8" width="26" height="16" rx="6" fill="#ffdf6b"/>
+      <rect x="36" y="8" width="26" height="16" rx="6" fill="#ffdf6b"/>
+      <rect x="-70" y="30" width="140" height="10" rx="5" fill="#1a1626" opacity="0.35"/>
+    </g>
+    <!-- скорость: линии -->
+    <rect x="24" y="330" width="70" height="10" rx="5" fill="#ffe259" opacity="0.85" transform="rotate(24 24 330)"/>
+    <rect x="420" y="318" width="76" height="10" rx="5" fill="#ffe259" opacity="0.85" transform="rotate(-24 496 318)"/>
+    <rect x="10" y="420" width="60" height="9" rx="4" fill="#35e0ff" opacity="0.8" transform="rotate(28 10 420)"/>
+    <rect x="446" y="408" width="62" height="9" rx="4" fill="#35e0ff" opacity="0.8" transform="rotate(-28 508 408)"/>
+  </g>
+</svg>

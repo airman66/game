@@ -1,4 +1,5 @@
-// Сцена: дорога, обочины, освещение, декорации. Стиль — низкополигональный закат.
+// Сцена: дорога, обочины, освещение, декорации, цикл день/ночь.
+// Стиль — низкополигональный, палитра плавно меняется: закат → ночь → рассвет → день.
 
 import * as THREE from 'three';
 import { spawnModel } from './assets.js';
@@ -7,6 +8,16 @@ export const LANES = [-3.3, -1.1, 1.1, 3.3];
 export const ROAD_HALF = 5.6;
 export const SPAWN_Z = -170;
 export const DESPAWN_Z = 28;
+
+const DAY_CYCLE = 130; // секунд на полный цикл
+
+// Ключевые кадры времени суток: закат(0) → ночь(.25) → рассвет(.5) → день(.75) → закат(1)
+const TOD = [
+  { sky: ['#141a3d', '#4b3a7a', '#c65f7f', '#ff9d6b', '#ffc98a'], fog: '#c65f7f', hemi: 0.85, dir: 2.0, dirCol: '#ffd2a0', ground: '#8a5a44', mount: '#2e2450', sun: 1.0, night: 0 },
+  { sky: ['#070b18', '#0e1530', '#1a2550', '#233260', '#2c3d70'], fog: '#1a2550', hemi: 0.58, dir: 0.85, dirCol: '#93aaff', ground: '#3c3852', mount: '#100d26', sun: 0.0, night: 1 },
+  { sky: ['#1a2150', '#6b4a8a', '#d97a8a', '#ffb27a', '#ffd9a0'], fog: '#d97a8a', hemi: 0.7, dir: 1.6, dirCol: '#ffc9a0', ground: '#7a5544', mount: '#3a2a55', sun: 0.7, night: 0.12 },
+  { sky: ['#2f6fc9', '#5f9ade', '#9cc4e8', '#c8e0f2', '#e6f2fa'], fog: '#9cc4e8', hemi: 1.05, dir: 2.3, dirCol: '#fff2dd', ground: '#6f7a4e', mount: '#41597a', sun: 1.0, night: 0 },
+];
 
 export function createWorld(canvas) {
   const renderer = new THREE.WebGLRenderer({
@@ -23,34 +34,42 @@ export function createWorld(canvas) {
 
   const scene = new THREE.Scene();
 
-  // Небо: градиент заката на CanvasTexture
+  // Небо — градиент на CanvasTexture, перерисовывается при смене времени суток
   const skyCanvas = document.createElement('canvas');
   skyCanvas.width = 4; skyCanvas.height = 256;
-  const g = skyCanvas.getContext('2d');
-  const grad = g.createLinearGradient(0, 0, 0, 256);
-  grad.addColorStop(0.0, '#141a3d');
-  grad.addColorStop(0.45, '#4b3a7a');
-  grad.addColorStop(0.72, '#c65f7f');
-  grad.addColorStop(0.88, '#ff9d6b');
-  grad.addColorStop(1.0, '#ffc98a');
-  g.fillStyle = grad;
-  g.fillRect(0, 0, 4, 256);
+  const skyCtx = skyCanvas.getContext('2d');
   const skyTex = new THREE.CanvasTexture(skyCanvas);
   skyTex.colorSpace = THREE.SRGBColorSpace;
-  const skyGeo = new THREE.SphereGeometry(400, 16, 12);
-  const skyMat = new THREE.MeshBasicMaterial({ map: skyTex, side: THREE.BackSide, fog: false, depthWrite: false });
-  const sky = new THREE.Mesh(skyGeo, skyMat);
+  const sky = new THREE.Mesh(
+    new THREE.SphereGeometry(400, 16, 12),
+    new THREE.MeshBasicMaterial({ map: skyTex, side: THREE.BackSide, fog: false, depthWrite: false })
+  );
   scene.add(sky);
 
   scene.fog = new THREE.Fog(0xc65f7f, 60, 210);
 
-  // Солнце — плоский диск у горизонта
+  // Солнце/луна — диск у горизонта
   const sun = new THREE.Mesh(
     new THREE.CircleGeometry(26, 32),
     new THREE.MeshBasicMaterial({ color: 0xffd9a0, fog: false, transparent: true, opacity: 0.95 })
   );
   sun.position.set(-40, 26, -330);
   scene.add(sun);
+
+  // Звёзды (видны только ночью)
+  const starGeo = new THREE.BufferGeometry();
+  {
+    const pts = [];
+    for (let i = 0; i < 240; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const el = 0.12 + Math.random() * 1.3;
+      const r = 380;
+      pts.push(r * Math.cos(el) * Math.sin(a), r * Math.sin(el), -Math.abs(r * Math.cos(el) * Math.cos(a)) - 20);
+    }
+    starGeo.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+  }
+  const starMat = new THREE.PointsMaterial({ color: 0xdfe8ff, size: 1.6, sizeAttenuation: false, transparent: true, opacity: 0, fog: false, depthWrite: false });
+  scene.add(new THREE.Points(starGeo, starMat));
 
   // Свет
   const hemi = new THREE.HemisphereLight(0xcdd6ff, 0x3d2a3a, 0.85);
@@ -73,11 +92,9 @@ export function createWorld(canvas) {
   camera.position.set(0, 5.4, 9.2);
   camera.lookAt(0, 1.1, -8);
 
-  // Земля по бокам
-  const ground = new THREE.Mesh(
-    new THREE.PlaneGeometry(600, 600),
-    new THREE.MeshLambertMaterial({ color: 0x8a5a44 })
-  );
+  // Земля
+  const groundMat = new THREE.MeshLambertMaterial({ color: 0x8a5a44 });
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(600, 600), groundMat);
   ground.rotation.x = -Math.PI / 2;
   ground.position.y = -0.06;
   ground.receiveShadow = true;
@@ -93,7 +110,6 @@ export function createWorld(canvas) {
   road.receiveShadow = true;
   scene.add(road);
 
-  // Обочины-полосы
   for (const side of [-1, 1]) {
     const stripe = new THREE.Mesh(
       new THREE.PlaneGeometry(0.35, 500),
@@ -104,13 +120,24 @@ export function createWorld(canvas) {
     scene.add(stripe);
   }
 
-  // Разметка: белые штрихи между полосами (InstancedMesh, скроллятся)
+  // Сплошная двойная жёлтая слева от полосы 0 — граница встречки
+  const oncomingLine = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.3, 500),
+    new THREE.MeshBasicMaterial({ color: 0xd9a012, transparent: true, opacity: 0 })
+  );
+  oncomingLine.rotation.x = -Math.PI / 2;
+  oncomingLine.position.set(LANES[0] + 1.1, 0.014, -160);
+  scene.add(oncomingLine);
+
+  // Разметка
   const DASH_LINES = [-2.2, 0, 2.2];
   const DASH_STEP = 9;
   const DASH_COUNT_PER_LINE = 26;
-  const dashGeo = new THREE.BoxGeometry(0.16, 0.02, 2.6);
-  const dashMat = new THREE.MeshBasicMaterial({ color: 0xe8e8f0 });
-  const dashes = new THREE.InstancedMesh(dashGeo, dashMat, DASH_LINES.length * DASH_COUNT_PER_LINE);
+  const dashes = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(0.16, 0.02, 2.6),
+    new THREE.MeshBasicMaterial({ color: 0xe8e8f0 }),
+    DASH_LINES.length * DASH_COUNT_PER_LINE
+  );
   const dashOffsets = [];
   {
     const m = new THREE.Matrix4();
@@ -126,7 +153,7 @@ export function createWorld(canvas) {
   }
   scene.add(dashes);
 
-  // Отбойники: статичные рельсы + скроллящиеся столбики
+  // Отбойники
   for (const side of [-1, 1]) {
     const rail = new THREE.Mesh(
       new THREE.BoxGeometry(0.14, 0.22, 500),
@@ -136,10 +163,12 @@ export function createWorld(canvas) {
     scene.add(rail);
   }
   const POST_STEP = 12;
-  const POST_COUNT = 40; // по 20 на сторону
-  const postGeo = new THREE.BoxGeometry(0.12, 0.62, 0.12);
-  const postMat = new THREE.MeshLambertMaterial({ color: 0x6e7686 });
-  const posts = new THREE.InstancedMesh(postGeo, postMat, POST_COUNT);
+  const POST_COUNT = 40;
+  const posts = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(0.12, 0.62, 0.12),
+    new THREE.MeshLambertMaterial({ color: 0x6e7686 }),
+    POST_COUNT
+  );
   const postOffsets = [];
   {
     const m = new THREE.Matrix4();
@@ -155,7 +184,7 @@ export function createWorld(canvas) {
   }
   scene.add(posts);
 
-  // Деревья и камни на обочинах (скроллятся и рециклятся)
+  // Деревья и камни
   const props = [];
   const PROP_MODELS = ['tree_pineTallA', 'tree_pineTallB', 'tree_oak', 'rock_largeA', 'rock_largeB'];
   const rng = mulberry32(20260706);
@@ -168,7 +197,7 @@ export function createWorld(canvas) {
     p.position.set(
       side * (ROAD_HALF + 2.6 + rng() * 14),
       0,
-      20 - i * ((260) / 46) - rng() * 3
+      20 - i * (260 / 46) - rng() * 3
     );
     p.rotation.y = rng() * Math.PI * 2;
     p.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
@@ -176,7 +205,30 @@ export function createWorld(canvas) {
     props.push(p);
   }
 
-  // Далёкие горы-силуэты
+  // Мосты над трассой — редкие, проносятся над головой
+  const bridges = [];
+  const bridgeMat = new THREE.MeshLambertMaterial({ color: 0x55607a });
+  const bridgeEdgeMat = new THREE.MeshBasicMaterial({ color: 0xffb020 });
+  for (let i = 0; i < 2; i++) {
+    const b = new THREE.Group();
+    const spanW = (ROAD_HALF + 3.2) * 2;
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(spanW, 1.3, 2.6), bridgeMat);
+    beam.position.y = 5.6;
+    b.add(beam);
+    const edge = new THREE.Mesh(new THREE.BoxGeometry(spanW, 0.16, 2.7), bridgeEdgeMat);
+    edge.position.y = 4.9;
+    b.add(edge);
+    for (const side of [-1, 1]) {
+      const pillar = new THREE.Mesh(new THREE.BoxGeometry(1.4, 5.0, 2.2), bridgeMat);
+      pillar.position.set(side * (ROAD_HALF + 2.4), 2.5, 0);
+      b.add(pillar);
+    }
+    b.position.z = -260 - i * 300;
+    scene.add(b);
+    bridges.push(b);
+  }
+
+  // Горы
   const mountainMat = new THREE.MeshBasicMaterial({ color: 0x2e2450, fog: false });
   for (let i = 0; i < 9; i++) {
     const h = 30 + rng() * 46;
@@ -186,11 +238,50 @@ export function createWorld(canvas) {
     scene.add(mnt);
   }
 
+  // ---------- Время суток ----------
+
+  let tod = 0; // 0..1, старт — закат
+  let night = 0;
+  const cA = new THREE.Color(), cB = new THREE.Color();
+
+  function lerpColor(hexA, hexB, k) {
+    cA.set(hexA); cB.set(hexB);
+    return cA.lerp(cB, k);
+  }
+
+  function applyTimeOfDay(dt) {
+    tod = (tod + dt / DAY_CYCLE) % 1;
+    const seg = Math.floor(tod * 4);
+    const k = smooth(tod * 4 - seg);
+    const A = TOD[seg % 4], B = TOD[(seg + 1) % 4];
+
+    // Небо
+    const grad = skyCtx.createLinearGradient(0, 0, 0, 256);
+    const stops = [0, 0.45, 0.72, 0.88, 1];
+    for (let i = 0; i < 5; i++) {
+      grad.addColorStop(stops[i], '#' + lerpColor(A.sky[i], B.sky[i], k).getHexString());
+    }
+    skyCtx.fillStyle = grad;
+    skyCtx.fillRect(0, 0, 4, 256);
+    skyTex.needsUpdate = true;
+
+    scene.fog.color.copy(lerpColor(A.fog, B.fog, k));
+    hemi.intensity = A.hemi + (B.hemi - A.hemi) * k;
+    dir.intensity = A.dir + (B.dir - A.dir) * k;
+    dir.color.copy(lerpColor(A.dirCol, B.dirCol, k));
+    groundMat.color.copy(lerpColor(A.ground, B.ground, k));
+    mountainMat.color.copy(lerpColor(A.mount, B.mount, k));
+    sun.material.opacity = A.sun + (B.sun - A.sun) * k;
+    night = A.night + (B.night - A.night) * k;
+    starMat.opacity = night * 0.95;
+  }
+  applyTimeOfDay(0);
+
   const tmpM = new THREE.Matrix4();
 
   function update(dt, speed) {
+    applyTimeOfDay(dt);
     const dz = speed * dt;
-    // Разметка
     for (let i = 0; i < dashOffsets.length; i++) {
       const d = dashOffsets[i];
       d.z += dz;
@@ -199,7 +290,6 @@ export function createWorld(canvas) {
       dashes.setMatrixAt(i, tmpM);
     }
     dashes.instanceMatrix.needsUpdate = true;
-    // Столбики
     for (let i = 0; i < postOffsets.length; i++) {
       const p = postOffsets[i];
       p.z += dz;
@@ -208,17 +298,19 @@ export function createWorld(canvas) {
       posts.setMatrixAt(i, tmpM);
     }
     posts.instanceMatrix.needsUpdate = true;
-    // Декорации
     for (const p of props) {
       p.position.z += dz;
       if (p.position.z > 26) p.position.z -= 260;
+    }
+    for (const b of bridges) {
+      b.position.z += dz;
+      if (b.position.z > 34) b.position.z -= 560 + Math.random() * 120;
     }
   }
 
   function onResize() {
     const w = window.innerWidth, h = window.innerHeight;
     camera.aspect = w / h;
-    // В портретной ориентации шире угол обзора, чтобы дорога помещалась
     camera.fov = h > w ? 78 : 64;
     camera.updateProjectionMatrix();
     renderer.setSize(w, h);
@@ -239,7 +331,15 @@ export function createWorld(canvas) {
     scene.traverse((o) => { if (o.material) o.material.needsUpdate = true; });
   }
 
-  return { renderer, scene, camera, update, onResize, setQuality, dirLight: dir };
+  return {
+    renderer, scene, camera, update, onResize, setQuality,
+    getNight: () => night,
+    setOncomingVisible: (on) => { oncomingLine.material.opacity = on ? 0.9 : 0; },
+  };
+}
+
+function smooth(t) {
+  return t * t * (3 - 2 * t);
 }
 
 function mulberry32(a) {
