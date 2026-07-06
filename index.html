@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b1026" />
+  <title>Turbo Traffic 3D</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E%F0%9F%8F%8E%3C/text%3E%3C/svg%3E" />
+  <script type="module" src="./src/main.js"></script>
+</head>
+<body>
+  <canvas id="game-canvas"></canvas>
+
+  <!-- Экран загрузки -->
+  <div id="screen-loading" class="screen visible">
+    <div class="loading-inner">
+      <div class="game-logo"><span class="logo-turbo">TURBO</span><span class="logo-traffic">TRAFFIC</span><span class="logo-3d">3D</span></div>
+      <div class="progress-track"><div id="loading-bar" class="progress-fill"></div></div>
+      <div id="loading-text" class="loading-text">0%</div>
+    </div>
+  </div>
+
+  <!-- Главное меню -->
+  <div id="screen-menu" class="screen">
+    <div class="menu-top">
+      <div class="stat-chip" id="menu-best"><span class="chip-icon">&#127942;</span><span id="menu-best-value">0</span></div>
+      <div class="stat-chip" id="menu-coins"><span class="chip-icon coin-icon"></span><span id="menu-coins-value">0</span></div>
+      <button id="btn-sound" class="icon-btn" aria-label="sound"></button>
+    </div>
+    <div class="menu-center">
+      <div class="game-logo"><span class="logo-turbo">TURBO</span><span class="logo-traffic">TRAFFIC</span><span class="logo-3d">3D</span></div>
+      <button id="btn-play" class="big-btn play-btn"><span data-i18n="play"></span></button>
+      <button id="btn-garage" class="mid-btn"><span class="chip-icon">&#128663;</span> <span data-i18n="garage"></span></button>
+    </div>
+    <div class="menu-hint" id="menu-hint"></div>
+  </div>
+
+  <!-- Гараж -->
+  <div id="screen-garage" class="screen">
+    <div class="garage-head">
+      <button id="btn-garage-back" class="icon-btn back-btn">&#10094;</button>
+      <h2 data-i18n="garage"></h2>
+      <div class="stat-chip"><span class="chip-icon coin-icon"></span><span id="garage-coins-value">0</span></div>
+    </div>
+    <div id="garage-grid" class="garage-grid"></div>
+  </div>
+
+  <!-- HUD -->
+  <div id="hud" class="screen hud">
+    <div class="hud-top">
+      <div class="hud-score"><span id="hud-score">0</span></div>
+      <div class="hud-right">
+        <div class="stat-chip small"><span class="chip-icon coin-icon"></span><span id="hud-coins">0</span></div>
+        <button id="btn-pause" class="icon-btn">&#10074;&#10074;</button>
+      </div>
+    </div>
+    <div id="hud-mult" class="hud-mult">x2</div>
+    <div id="hud-toast" class="hud-toast"></div>
+    <div id="powerup-bar" class="powerup-bar"></div>
+  </div>
+
+  <!-- Пауза -->
+  <div id="screen-pause" class="screen overlay">
+    <div class="panel">
+      <h2 data-i18n="paused"></h2>
+      <button id="btn-resume" class="big-btn play-btn"><span data-i18n="resume"></span></button>
+      <button id="btn-exit-menu" class="mid-btn"><span data-i18n="toMenu"></span></button>
+    </div>
+  </div>
+
+  <!-- Игра окончена -->
+  <div id="screen-gameover" class="screen overlay">
+    <div class="panel">
+      <h2 data-i18n="crash"></h2>
+      <div class="result-row"><span data-i18n="score"></span><b id="go-score">0</b></div>
+      <div class="result-row"><span data-i18n="best"></span><b id="go-best">0</b></div>
+      <div class="result-row"><span data-i18n="coinsEarned"></span><b id="go-coins">0</b></div>
+      <div id="go-newrecord" class="new-record" data-i18n="newRecord"></div>
+      <button id="btn-revive" class="big-btn revive-btn"><span class="ad-badge">AD</span> <span data-i18n="revive"></span></button>
+      <button id="btn-restart" class="big-btn play-btn"><span data-i18n="restart"></span></button>
+      <button id="btn-gameover-menu" class="mid-btn"><span data-i18n="toMenu"></span></button>
+    </div>
+  </div>
+</body>
+</html>
