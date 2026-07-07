@@ -425,6 +425,7 @@ export function createGame(canvas, hooks) {
     S.crashT = 0;
     S.shake = 1;
     S.combo = 0;
+    hooks.onCombo?.(0);
     sfx.crash();
     stopEngine();
     for (const t of traffic) t.siren?.stop();
@@ -699,6 +700,7 @@ export function createGame(canvas, hooks) {
           S.shieldOn = false;
           S.shieldFromRevive = false;
           S.combo = 0;
+          hooks.onCombo?.(0);
           sfx.shieldPop();
           burstParticles(t.obj.position.clone().setY(0.8), 12, 0x53ffa9);
           t.alive = false;

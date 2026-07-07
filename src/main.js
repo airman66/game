@@ -236,9 +236,17 @@ function bindUI() {
     btn.disabled = left > 0;
     if (left > 0) setTimeout(refreshGarageAdBtn, Math.min(left + 50, 5000));
   };
+  // Покупка машины может закрыть достижения «Полгаража»/«Коллекционер».
+  // Вызывается ДО перестроения гаража внутри ui — счётчик монет учтёт награду.
+  const onCarPurchase = () => {
+    for (const a of checkAchievements()) {
+      ui.menuToast(`${a.icon} ` + t('achDone', { name: achName(a.id), r: a.reward }));
+      sfx.missionDone();
+    }
+  };
   on('btn-garage', () => {
     uiState = 'garage';
-    ui.buildGarage((carId) => game.setPlayerCar(carId));
+    ui.buildGarage((carId) => game.setPlayerCar(carId), onCarPurchase);
     refreshGarageAdBtn();
     ui.showScreens('screen-garage');
   });
@@ -251,7 +259,7 @@ function bindUI() {
       updateSave({ coins: getSave().coins + 250 });
       flushSave();
       sfx.daily();
-      ui.buildGarage((carId) => game.setPlayerCar(carId));
+      ui.buildGarage((carId) => game.setPlayerCar(carId), onCarPurchase);
       refreshGarageAdBtn();
     }
   });

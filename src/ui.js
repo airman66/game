@@ -176,7 +176,7 @@ function renderCarPreview(id, targetCanvas) {
   g2d.drawImage(previewRenderer.domElement, 0, 0, targetCanvas.width, targetCanvas.height);
 }
 
-export function buildGarage(onSelect) {
+export function buildGarage(onSelect, onPurchase) {
   const grid = $('garage-grid');
   grid.innerHTML = '';
   const save = getSave();
@@ -217,7 +217,7 @@ export function buildGarage(onSelect) {
         updateSave({ selectedCar: id });
         sfx.click();
         onSelect(id);
-        buildGarage(onSelect);
+        buildGarage(onSelect, onPurchase);
       } else if (s.coins >= price) {
         updateSave({
           coins: s.coins - price,
@@ -229,7 +229,8 @@ export function buildGarage(onSelect) {
         const joke = buyJoke(id);
         if (joke) menuToast(joke);
         onSelect(id);
-        buildGarage(onSelect);
+        onPurchase?.();
+        buildGarage(onSelect, onPurchase);
       } else {
         sfx.shieldPop();
         card.animate(

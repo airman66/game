@@ -36,8 +36,12 @@ for (const lang of LANGS) {
   const shot = (name) => page.screenshot({ path: join(OUT, `${name}.png`) })
   const toMenu = async () => { await page.evaluate(() => window.__ttd.goMenu(false)); await page.waitForTimeout(700) }
 
-  // 0) меню с логотипом
-  await page.evaluate(() => document.getElementById('tutorial-hint').classList.remove('show'))
+  // 0) меню с логотипом и рангом (немного XP для живости бейджа)
+  await page.evaluate(() => {
+    localStorage.removeItem('turbo-traffic-3d-save')
+    document.getElementById('tutorial-hint').classList.remove('show')
+    document.getElementById('menu-toast').classList.remove('show')
+  })
   await shot('00_menu')
 
   // 1) классика днём: неуязвимость на время скрина, накат ~6с — трафик, счёт, скорость
@@ -49,8 +53,15 @@ for (const lang of LANGS) {
     document.getElementById('tutorial-hint').classList.remove('show')
   })
   await page.waitForTimeout(6000)
-  await page.evaluate(() => window.__ttd.game.world._setTod(0.8))
+  await page.evaluate(() => {
+    window.__ttd.game.world._setTod(0.8)
+    // Комбо-каунтер в кадре — как выглядит серия обгонов
+    const combo = document.getElementById('hud-combo')
+    combo.textContent = 'x4'
+    combo.classList.add('on')
+  })
   await shot('01_race')
+  await page.evaluate(() => document.getElementById('hud-combo').classList.remove('on'))
 
   // 2) нитро на закате: полная шкала → активация → пламя и виньетка
   await page.evaluate(() => {
@@ -62,10 +73,11 @@ for (const lang of LANGS) {
   await page.waitForTimeout(900)
   await shot('02_nitro')
 
-  // 3) разгром ночью: тараны с фейерверком частиц (рулим в трафик)
+  // 3) разгром дождливой ночью: тараны с фейерверком частиц (рулим в трафик)
   await page.evaluate(() => {
     window.__ttd.startRun('rampage')
     window.__ttd.game.world._setTod(0.25) // ночь, звёзды, фары
+    window.__ttd.game.world.setRain(true)
   })
   await page.waitForTimeout(3500)
   for (let i = 0; i < 9; i++) {
@@ -88,16 +100,33 @@ for (const lang of LANGS) {
   await shot('05_missions')
   await page.click('#btn-missions-back')
 
-  // 6) экран результата: новый рекорд, конфетти, кнопка продолжения
+  // 6) награды: сеем тоталы фейковым заездом — часть достижений закрыта, часть в прогрессе
+  await page.waitForTimeout(400)
+  await page.evaluate(() => {
+    window.__ttd.gameOver({
+      score: 5400, coins: 210, canRevive: false, reason: 'crash',
+      stats: { dist: 6400, coins: 210, near: 27, oncoming: 6, overtakes: 41, cones: 18, nitroUses: 9, rams: 12, time: 121, bestCombo: 7, ufo: false },
+    })
+  })
+  await page.waitForTimeout(400)
+  await page.click('#btn-gameover-menu')
+  await page.waitForTimeout(700)
+  await page.click('#btn-achievements')
+  await page.waitForTimeout(600)
+  await shot('06_achievements')
+  await page.click('#btn-ach-back')
+
+  // 7) экран результата: новый рекорд, конфетти, статы заезда
   await page.waitForTimeout(400)
   await page.evaluate(() => {
     window.__ttd.gameOver({
       score: 12480, coins: 57, canRevive: true, reason: 'crash',
-      stats: { dist: 4200, coins: 57, near: 11, overtakes: 34, cones: 5, nitroUses: 3, rams: 0, time: 96 },
+      stats: { dist: 4200, coins: 57, near: 11, oncoming: 3, overtakes: 34, cones: 5, nitroUses: 3, rams: 0, time: 96, bestCombo: 6, ufo: false },
     })
   })
   await page.waitForTimeout(900)
-  await shot('06_gameover')
+  await page.evaluate(() => document.getElementById('menu-toast').classList.remove('show'))
+  await shot('07_gameover')
 
   await page.close()
   console.log(`✓ ${lang}: скриншоты в publish/screenshots/${lang}/ (1080×1920)`)
