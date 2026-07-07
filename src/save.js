@@ -20,6 +20,12 @@ const DEFAULTS = {
   dailyStreak: 0,
   konami: false,
   tutorialSeen: false,
+  xp: 0,
+  achUnlocked: [],
+  totals: {
+    runs: 0, dist: 0, near: 0, oncoming: 0, rams: 0, cones: 0,
+    nitro: 0, coins: 0, bestCombo: 0, maxScore: 0, bestTime: 0, ufo: false,
+  },
 };
 
 let state = { ...DEFAULTS };
@@ -41,8 +47,20 @@ function merge(a, b) {
     ...b,
     best: Math.max(a.best || 0, b.best || 0),
     coins: Math.max(a.coins || 0, b.coins || 0),
+    xp: Math.max(a.xp || 0, b.xp || 0),
     ownedCars: [...new Set([...(a.ownedCars || []), ...(b.ownedCars || [])])],
+    achUnlocked: [...new Set([...(a.achUnlocked || []), ...(b.achUnlocked || [])])],
+    totals: mergeTotals(a.totals, b.totals),
   };
+}
+
+function mergeTotals(a = {}, b = {}) {
+  const out = { ...DEFAULTS.totals };
+  for (const k of Object.keys(out)) {
+    if (typeof out[k] === 'boolean') out[k] = !!(a[k] || b[k]);
+    else out[k] = Math.max(a[k] || 0, b[k] || 0);
+  }
+  return out;
 }
 
 export async function initSave() {

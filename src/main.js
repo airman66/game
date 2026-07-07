@@ -2,7 +2,8 @@
 
 import './style.css';
 import * as ysdk from './yandex.js';
-import { setLanguage, t } from './i18n.js';
+import { setLanguage, t, achName, rankName } from './i18n.js';
+import { accumulateTotals, checkAchievements, addXp } from './achievements.js';
 import { loadAssets } from './assets.js';
 import { initSave, getSave, updateSave, flushSave } from './save.js';
 import { createGame, MODES } from './game.js';
@@ -47,6 +48,7 @@ async function boot() {
     onToast: (key, pts, combo) => ui.hud.toast(key, pts, combo),
     onPowerups: (p) => ui.hud.setPowerups(p),
     onNitro: (v, active) => ui.hud.setNitro(v, active),
+    onCombo: (c) => ui.hud.setCombo(c),
     onNitroState: (on) => { if (!on) ui.hud.setNitro(0, false); },
     onTimer: (sec) => ui.hud.setTimer(sec, true),
     onVibrate: (ms) => vibrate(ms),
@@ -124,8 +126,10 @@ function startRun(modeId) {
   ui.hud.setMobileButtons(ysdk.isMobile());
   ui.showScreens('hud');
   ysdk.hideBanner();
+  ui.hud.setCombo(0);
   playMusic(MODES[modeId]?.music ?? 'race1');
   game.startRun(modeId);
+  ui.showCountdown();
   showTutorialOnce();
 }
 
@@ -166,8 +170,11 @@ function handleGameOver({ score, coins, canRevive, reason, stats }) {
   const newBest = Math.max(save.best, score);
   updateSave({ best: newBest, coins: save.coins + coins });
 
-  // Задания: прогресс и награды
+  // Задания, достижения, ранг
   const completed = applyRunStats(stats);
+  accumulateTotals(stats, score);
+  const freshAch = checkAchievements();
+  const newRank = addXp(score);
   flushSave();
   ysdk.submitScore(newBest);
   ysdk.gameplayStop();
@@ -175,17 +182,20 @@ function handleGameOver({ score, coins, canRevive, reason, stats }) {
 
   ui.showGameOver({
     score, coins, best: newBest, isRecord, canRevive,
-    canDouble: coins > 0, reason,
+    canDouble: coins > 0, reason, stats,
   });
-  if (completed.length) {
-    let delay = 600;
-    for (const m of completed) {
-      setTimeout(() => {
-        ui.menuToast('✅ ' + t('missionDone', { r: m.reward }));
-        sfx.missionDone();
-      }, delay);
-      delay += 2400;
-    }
+  // Очередь тостов: миссии → достижения → ранг
+  let delay = 600;
+  for (const m of completed) {
+    setTimeout(() => { ui.menuToast('✅ ' + t('missionDone', { r: m.reward })); sfx.missionDone(); }, delay);
+    delay += 2400;
+  }
+  for (const a of freshAch) {
+    setTimeout(() => { ui.menuToast(`${a.icon} ` + t('achDone', { name: achName(a.id), r: a.reward })); sfx.missionDone(); }, delay);
+    delay += 2400;
+  }
+  if (newRank >= 0) {
+    setTimeout(() => { ui.menuToast('🏅 ' + t('rankUp', { name: rankName(newRank), r: newRank * 100 })); sfx.record(); }, delay);
   }
 }
 
@@ -252,6 +262,13 @@ function bindUI() {
     ui.showScreens('screen-menu', 'screen-missions');
   });
   on('btn-missions-back', () => goMenu(false));
+
+  on('btn-achievements', () => {
+    uiState = 'achievements';
+    ui.buildAchievements();
+    ui.showScreens('screen-menu', 'screen-achievements');
+  });
+  on('btn-ach-back', () => goMenu(false));
 
   on('btn-leaderboard', async () => {
     uiState = 'leaderboard';

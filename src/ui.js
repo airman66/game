@@ -2,10 +2,11 @@
 
 import * as THREE from 'three';
 import { spawnModel, CAR_IDS } from './assets.js';
-import { t, carName, crashPhrase, buyJoke, missionText } from './i18n.js';
+import { t, carName, crashPhrase, buyJoke, missionText, achName, achDesc, rankName } from './i18n.js';
 import { getSave, updateSave, flushSave } from './save.js';
 import { sfx } from './audio.js';
 import { getMissions } from './missions.js';
+import { achievementProgress, rankInfo } from './achievements.js';
 
 export const CAR_PRICES = {
   'sedan-sports': 0, 'hatchback-sports': 300, suv: 600, taxi: 1000, van: 1500,
@@ -18,6 +19,7 @@ const $ = (id) => document.getElementById(id);
 const screens = [
   'screen-loading', 'screen-menu', 'screen-garage', 'hud', 'screen-pause',
   'screen-gameover', 'screen-missions', 'screen-leaderboard', 'screen-settings',
+  'screen-achievements',
 ];
 
 export function showScreens(...names) {
@@ -85,7 +87,41 @@ export const hud = {
     $('btn-nitro').classList.add('on');
     $('btn-horn').classList.toggle('on', isMobile);
   },
+  setCombo(combo) {
+    const el = $('hud-combo');
+    if (combo > 1) {
+      el.textContent = `x${combo}`;
+      el.classList.add('on');
+      el.classList.remove('bump');
+      void el.offsetWidth;
+      el.classList.add('bump');
+    } else {
+      el.classList.remove('on');
+    }
+  },
 };
+
+// Отсчёт 3-2-1-ЖМИ на старте заезда (декоративный, управление не блокирует)
+let countdownTimers = [];
+
+export function showCountdown() {
+  const el = $('countdown');
+  for (const t of countdownTimers) clearTimeout(t);
+  countdownTimers = [];
+  const steps = ['3', '2', '1', t('go')];
+  steps.forEach((txt, i) => {
+    countdownTimers.push(setTimeout(() => {
+      el.textContent = txt;
+      el.classList.toggle('go', i === steps.length - 1);
+      el.classList.remove('show');
+      void el.offsetWidth;
+      el.classList.add('show');
+      if (i < steps.length - 1) sfx.click();
+      else sfx.powerup();
+    }, i * 480));
+  });
+  countdownTimers.push(setTimeout(() => el.classList.remove('show'), steps.length * 480 + 350));
+}
 
 // ---------- Меню ----------
 
@@ -95,6 +131,9 @@ export function refreshMenu() {
   const save = getSave();
   $('menu-best-value').textContent = save.best;
   $('menu-coins-value').textContent = save.coins;
+  const ri = rankInfo();
+  $('rank-title').textContent = `${t('rank')} ${ri.rank + 1} · ${rankName(ri.rank)}`;
+  $('rank-fill').style.width = `${Math.round(ri.progress * 100)}%`;
 }
 
 export function menuToast(text) {
@@ -231,6 +270,29 @@ export function buildMissions() {
   }
 }
 
+// ---------- Награды ----------
+
+export function buildAchievements() {
+  const list = $('ach-list');
+  list.innerHTML = '';
+  const items = achievementProgress().sort((a, b) => (b.done ? 1 : 0) - (a.done ? 1 : 0) || (b.cur / b.target) - (a.cur / a.target));
+  for (const a of items) {
+    const pct = Math.min(100, Math.round((a.cur / a.target) * 100));
+    const card = document.createElement('div');
+    card.className = 'ach-card' + (a.done ? ' done' : '');
+    card.innerHTML = `
+      <span class="ach-icon">${a.icon}</span>
+      <div class="ach-body">
+        <div class="ach-name">${achName(a.id)}</div>
+        <div class="ach-desc">${achDesc(a.id)}</div>
+        <div class="mission-track"><div class="mission-fill" style="width:${a.done ? 100 : pct}%"></div></div>
+      </div>
+      <span class="ach-reward">${a.done ? '✓' : `+${a.reward}`}</span>
+    `;
+    list.append(card);
+  }
+}
+
 // ---------- Рекорды ----------
 
 export function buildLeaderboard(entries) {
@@ -273,12 +335,20 @@ export function refreshSettings() {
 
 // ---------- Игра окончена ----------
 
-export function showGameOver({ score, coins, best, isRecord, canRevive, canDouble, reason }) {
+export function showGameOver({ score, coins, best, isRecord, canRevive, canDouble, reason, stats }) {
   $('go-title').textContent = t(reason === 'time' ? 'timeUp' : 'crash');
   $('go-phrase').textContent = reason === 'time' ? '' : crashPhrase();
   $('go-score').textContent = score;
   $('go-best').textContent = best;
   $('go-coins').textContent = coins;
+  if (stats) {
+    $('go-stats').innerHTML = [
+      ['statDist', `${Math.floor(stats.dist)} ${t('m')}`],
+      ['statOvertakes', stats.overtakes],
+      ['statNear', stats.near],
+      ...(stats.rams ? [['statRams', stats.rams]] : []),
+    ].map(([k, v]) => `<span class="go-stat">${t(k)}: <b>${v}</b></span>`).join('');
+  }
   $('go-newrecord').classList.toggle('show', isRecord);
   $('btn-revive').classList.toggle('hidden', !canRevive);
   $('btn-x2coins').classList.toggle('hidden', !canDouble);

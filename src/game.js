@@ -136,7 +136,7 @@ export function createGame(canvas, hooks) {
   let rng = Math.random;
 
   function freshStats() {
-    return { dist: 0, coins: 0, near: 0, overtakes: 0, cones: 0, nitroUses: 0, rams: 0, time: 0 };
+    return { dist: 0, coins: 0, near: 0, oncoming: 0, overtakes: 0, cones: 0, nitroUses: 0, rams: 0, time: 0, bestCombo: 0, ufo: false };
   }
 
   function difficulty() {
@@ -329,6 +329,7 @@ export function createGame(canvas, hooks) {
       ufo = null;
       if (S.mode === 'running') {
         S.coins += 100;
+        S.stats.ufo = true;
         hooks.onCoins?.(S.coins);
         hooks.onToast?.('ufo');
         hooks.onVibrate?.(60);
@@ -406,6 +407,8 @@ export function createGame(canvas, hooks) {
       stats: freshStats(),
     });
     world.setOncomingVisible(S.oncomingOn);
+    // Погода: иногда заезд идёт под дождём
+    world.setRain(rng() < 0.22);
     playerCar.position.set(LANES[1], 0, 0);
     playerCar.rotation.set(0, Math.PI, 0);
     for (let z = -55; z >= SPAWN_Z; z -= 30) spawnTrafficRow(z);
@@ -505,6 +508,7 @@ export function createGame(canvas, hooks) {
     stopEngine();
     S.mode = 'idle';
     world.setOncomingVisible(false);
+    world.setRain(false);
     playerCar.position.set(0, 0, 0);
     playerCar.rotation.set(0, Math.PI, 0);
   }
@@ -574,7 +578,7 @@ export function createGame(canvas, hooks) {
     // Таймеры
     if (S.magnetT > 0) S.magnetT -= dt;
     if (S.x2T > 0) S.x2T -= dt;
-    if (S.comboT > 0) { S.comboT -= dt; if (S.comboT <= 0) S.combo = 0; }
+    if (S.comboT > 0) { S.comboT -= dt; if (S.comboT <= 0) { S.combo = 0; hooks.onCombo?.(0); } }
     if (S.hornCd > 0) S.hornCd -= dt;
     if (S.nitroT > 0) {
       S.nitroT -= dt;
@@ -713,10 +717,13 @@ export function createGame(canvas, hooks) {
           // «На волоске» — комбо и нитро
           S.combo = S.comboT > 0 ? S.combo + 1 : 1;
           S.comboT = 4;
+          S.stats.bestCombo = Math.max(S.stats.bestCombo, S.combo);
+          hooks.onCombo?.(S.combo);
           const base = t.oncoming ? 50 : 25;
           const pts = base * S.combo * mult;
           S.score += pts;
           S.stats.near++;
+          if (t.oncoming) S.stats.oncoming++;
           S.nitro = Math.min(100, S.nitro + (t.oncoming ? 30 : 20));
           if (S.nitro >= 100 && S.nitroT <= 0) hooks.onToast?.('nitroReady');
           else hooks.onToast?.(t.oncoming ? 'oncomingMiss' : 'nearMiss', pts, S.combo);

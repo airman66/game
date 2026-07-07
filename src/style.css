@@ -154,6 +154,26 @@ html, body {
 /* Нижний отступ — чтобы sticky-баннер Яндекса не перекрывал подсказку */
 .menu-hint { color: var(--muted); font-size: 14px; text-align: center; padding-bottom: 6px; margin-bottom: 54px; }
 
+/* Ранг игрока в меню */
+.rank-chip {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  margin: -14px 0 12px;
+  font-size: 13px; font-weight: 800;
+  color: var(--cyan);
+  text-shadow: 0 2px 8px rgba(0,0,0,0.6);
+}
+.rank-track {
+  width: min(60vw, 220px); height: 7px;
+  background: rgba(255,255,255,0.14);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.rank-fill {
+  height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, #35e0ff, #7ee081);
+  transition: width 0.4s;
+}
+
 .mode-row { display: flex; gap: 8px; margin-top: 8px; width: min(88vw, 340px); }
 .mode-btn {
   flex: 1;
@@ -320,6 +340,42 @@ html, body {
 .hud-mult.on { display: block; }
 @keyframes pulse { from { transform: scale(1); } to { transform: scale(1.15); } }
 
+/* Комбо-каунтер */
+.hud-combo {
+  display: none;
+  position: absolute; top: calc(12px + var(--sat)); left: 50%;
+  transform: translateX(-50%);
+  font-size: 30px; font-weight: 900; font-style: italic;
+  color: var(--accent);
+  text-shadow: 0 0 16px rgba(255, 176, 32, 0.85), 0 3px 10px rgba(0,0,0,0.6);
+}
+.hud-combo.on { display: block; }
+.hud-combo.bump { animation: combo-bump 0.25s ease-out; }
+@keyframes combo-bump {
+  0% { transform: translateX(-50%) scale(1.6); }
+  100% { transform: translateX(-50%) scale(1); }
+}
+
+/* Отсчёт на старте */
+.countdown {
+  position: absolute; top: 30%; left: 50%;
+  transform: translateX(-50%);
+  font-size: clamp(54px, 16vw, 96px);
+  font-weight: 900; font-style: italic;
+  color: var(--text);
+  text-shadow: 0 0 24px rgba(53, 224, 255, 0.7), 0 4px 16px rgba(0,0,0,0.7);
+  opacity: 0;
+  pointer-events: none;
+}
+.countdown.go { color: var(--accent); text-shadow: 0 0 28px rgba(255, 176, 32, 0.9); }
+.countdown.show { animation: countdown-pop 0.46s ease-out; }
+@keyframes countdown-pop {
+  0% { opacity: 0; transform: translateX(-50%) scale(1.7); }
+  25% { opacity: 1; transform: translateX(-50%) scale(1); }
+  80% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(-50%) scale(0.92); }
+}
+
 .hud-toast {
   position: absolute; top: 26%; left: 50%;
   transform: translateX(-50%);
@@ -432,6 +488,38 @@ html, body {
 .mission-track { height: 9px; background: rgba(255,255,255,0.1); border-radius: 999px; overflow: hidden; }
 .mission-fill { height: 100%; border-radius: 999px; background: linear-gradient(90deg, #35e0ff, #7ee081); }
 .mission-progress { font-size: 11px; color: var(--muted); margin-top: 4px; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ---------- Награды ---------- */
+.ach-list {
+  width: 100%;
+  display: flex; flex-direction: column; gap: 8px;
+  margin-bottom: 8px;
+  max-height: 52vh;
+  overflow-y: auto;
+  touch-action: pan-y;
+}
+.ach-card {
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(255,255,255,0.06);
+  border: 2px solid rgba(255,255,255,0.1);
+  border-radius: 14px;
+  padding: 9px 12px;
+}
+.ach-card.done { border-color: rgba(126, 224, 129, 0.55); background: rgba(126, 224, 129, 0.08); }
+.ach-icon { font-size: 24px; }
+.ach-body { flex: 1; min-width: 0; }
+.ach-name { font-size: 14px; font-weight: 800; }
+.ach-desc { font-size: 11px; color: var(--muted); margin: 1px 0 5px; }
+.ach-reward { font-size: 14px; font-weight: 800; color: var(--accent); white-space: nowrap; }
+.ach-card.done .ach-reward { color: #7ee081; }
+
+/* Статы заезда на экране результата */
+.go-stats {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px;
+  margin: 6px 0 2px;
+  font-size: 12px; color: var(--muted);
+}
+.go-stats b { color: var(--text); }
 
 /* ---------- Рекорды ---------- */
 .lb-list { width: 100%; display: flex; flex-direction: column; gap: 5px; margin-bottom: 8px; min-height: 120px; }

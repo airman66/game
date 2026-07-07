@@ -30,6 +30,10 @@
     </div>
     <div class="menu-center">
       <div class="game-logo" id="menu-logo"><span class="logo-turbo" data-i18n="logoTop">ТУРБО</span><span class="logo-traffic" data-i18n="logoMid">ТРАФИК</span><span class="logo-3d">3D</span></div>
+      <div class="rank-chip" id="rank-chip">
+        <span id="rank-title"></span>
+        <div class="rank-track"><div id="rank-fill" class="rank-fill"></div></div>
+      </div>
       <button id="btn-play" class="big-btn play-btn"><span data-i18n="play"></span></button>
       <div class="mode-row">
         <button id="btn-sprint" class="mode-btn"><span class="mode-ico">&#9201;</span><span data-i18n="modeSprint"></span></button>
@@ -38,6 +42,7 @@
       <div class="mode-row">
         <button id="btn-garage" class="mode-btn"><span class="mode-ico">&#128663;</span><span data-i18n="garage"></span></button>
         <button id="btn-missions" class="mode-btn badge-holder"><span class="mode-ico">&#128203;</span><span data-i18n="missions"></span></button>
+        <button id="btn-achievements" class="mode-btn"><span class="mode-ico">&#127941;</span><span data-i18n="achievements"></span></button>
         <button id="btn-leaderboard" class="mode-btn"><span class="mode-ico">&#127942;</span><span data-i18n="leaderboard"></span></button>
       </div>
     </div>
@@ -62,6 +67,15 @@
       <h2 data-i18n="missions"></h2>
       <div id="missions-list" class="missions-list"></div>
       <button id="btn-missions-back" class="mid-btn"><span data-i18n="toMenu"></span></button>
+    </div>
+  </div>
+
+  <!-- Награды -->
+  <div id="screen-achievements" class="screen overlay">
+    <div class="panel">
+      <h2 data-i18n="achievements"></h2>
+      <div id="ach-list" class="ach-list"></div>
+      <button id="btn-ach-back" class="mid-btn"><span data-i18n="toMenu"></span></button>
     </div>
   </div>
 
@@ -100,6 +114,8 @@
       </div>
     </div>
     <div id="hud-mult" class="hud-mult">x2</div>
+    <div id="hud-combo" class="hud-combo"></div>
+    <div id="countdown" class="countdown"></div>
     <div id="tutorial-hint" class="tutorial-hint"></div>
     <div id="hud-toast" class="hud-toast"></div>
     <div id="powerup-bar" class="powerup-bar"></div>
@@ -125,6 +141,7 @@
       <div class="result-row"><span data-i18n="score"></span><b id="go-score">0</b></div>
       <div class="result-row"><span data-i18n="best"></span><b id="go-best">0</b></div>
       <div class="result-row"><span data-i18n="coinsEarned"></span><b id="go-coins">0</b></div>
+      <div class="go-stats" id="go-stats"></div>
       <div id="go-newrecord" class="new-record" data-i18n="newRecord"></div>
       <button id="btn-revive" class="big-btn revive-btn"><span class="ad-badge">AD</span> <span data-i18n="revive"></span></button>
       <button id="btn-x2coins" class="mid-btn ad-btn"><span class="ad-badge">AD</span> <span data-i18n="doubleCoins"></span></button>

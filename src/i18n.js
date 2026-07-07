@@ -6,6 +6,7 @@ const DICTS = {
     logoTop: 'ТУРБО',
     logoMid: 'ТРАФИК',
     kmh: 'км/ч',
+    m: 'м',
     play: 'Играть',
     modeClassic: 'Классика',
     modeSprint: 'Спринт',
@@ -79,6 +80,32 @@ const DICTS = {
       firetruck: 'Пожарная', 'suv-luxury': 'Люкс-джип', van: 'Фургон',
       'garbage-truck': 'Мусоровоз', 'hatchback-sports': 'Хот-хэтч', suv: 'Джип',
     },
+    achievements: 'Награды',
+    achDone: '{name}! +{r}',
+    rank: 'Ранг',
+    rankUp: 'Новый ранг: {name}! +{r}',
+    rankNames: ['Новичок', 'Таксист', 'Курьер', 'Лихач', 'Гонщик', 'Стритрейсер', 'Ас шоссе', 'Король потока', 'Турбо-мастер', 'Призрак трассы', 'Легенда', 'Бог дороги'],
+    go: 'ЖМИ!',
+    statDist: 'Дистанция',
+    statOvertakes: 'Обгоны',
+    statNear: 'На волоске',
+    statRams: 'Тараны',
+    achNames: {
+      first: 'Первый выезд', dist10: 'Дальнобойщик', dist100: 'Кругосветка',
+      near50: 'На грани', near500: 'Хирург потока', combo5: 'Серия x5',
+      combo10: 'Серия x10', coins1k: 'Копилка', rams50: 'Разрушитель',
+      cones100: 'Гроза конусов', score10k: 'Десятка', score50k: 'Полтинник',
+      onc25: 'Безумец', nitro100: 'Пиротехник', time180: 'Марафонец',
+      cars6: 'Полгаража', cars12: 'Коллекционер', ufo: 'Очевидец',
+    },
+    achDescs: {
+      first: 'Сыграй первый заезд', dist10: 'Проедь 10 км суммарно', dist100: 'Проедь 100 км суммарно',
+      near50: '50 обгонов «на волоске»', near500: '500 обгонов «на волоске»', combo5: 'Собери комбо x5',
+      combo10: 'Собери комбо x10', coins1k: 'Собери 1000 монет', rams50: 'Протарань 50 машин',
+      cones100: 'Сбей 100 конусов', score10k: '10 000 очков за заезд', score50k: '50 000 очков за заезд',
+      onc25: '25 обгонов по встречке', nitro100: 'Используй нитро 100 раз', time180: 'Продержись 3 минуты',
+      cars6: 'Купи 6 машин', cars12: 'Собери все 12 машин', ufo: 'Увидь НЛО',
+    },
     missionTexts: {
       coins_run: 'Собери {n} монет за один заезд',
       dist_run: 'Проедь {n} м за один заезд',
@@ -95,6 +122,7 @@ const DICTS = {
     logoTop: 'TURBO',
     logoMid: 'TRAFFIC',
     kmh: 'km/h',
+    m: 'm',
     play: 'Play',
     modeClassic: 'Classic',
     modeSprint: 'Sprint',
@@ -168,6 +196,32 @@ const DICTS = {
       firetruck: 'Fire Truck', 'suv-luxury': 'Lux SUV', van: 'Van',
       'garbage-truck': 'Garbage Truck', 'hatchback-sports': 'Hot Hatch', suv: 'SUV',
     },
+    achievements: 'Awards',
+    achDone: '{name}! +{r}',
+    rank: 'Rank',
+    rankUp: 'New rank: {name}! +{r}',
+    rankNames: ['Rookie', 'Cabbie', 'Courier', 'Daredevil', 'Racer', 'Street Racer', 'Highway Ace', 'Traffic King', 'Turbo Master', 'Road Ghost', 'Legend', 'Road God'],
+    go: 'GO!',
+    statDist: 'Distance',
+    statOvertakes: 'Overtakes',
+    statNear: 'Near misses',
+    statRams: 'Rams',
+    achNames: {
+      first: 'First Ride', dist10: 'Trucker', dist100: 'Globetrotter',
+      near50: 'On the Edge', near500: 'Traffic Surgeon', combo5: 'Combo x5',
+      combo10: 'Combo x10', coins1k: 'Piggy Bank', rams50: 'Wrecker',
+      cones100: 'Cone Storm', score10k: 'Ten Grand', score50k: 'Fifty Grand',
+      onc25: 'Madlad', nitro100: 'Pyromaniac', time180: 'Marathoner',
+      cars6: 'Half Garage', cars12: 'Collector', ufo: 'Eyewitness',
+    },
+    achDescs: {
+      first: 'Finish your first run', dist10: 'Drive 10 km in total', dist100: 'Drive 100 km in total',
+      near50: '50 near-miss overtakes', near500: '500 near-miss overtakes', combo5: 'Build a x5 combo',
+      combo10: 'Build a x10 combo', coins1k: 'Collect 1000 coins', rams50: 'Ram 50 cars',
+      cones100: 'Knock down 100 cones', score10k: 'Score 10,000 in one run', score50k: 'Score 50,000 in one run',
+      onc25: '25 oncoming-lane overtakes', nitro100: 'Use nitro 100 times', time180: 'Survive 3 minutes',
+      cars6: 'Own 6 cars', cars12: 'Own all 12 cars', ufo: 'Spot the UFO',
+    },
     missionTexts: {
       coins_run: 'Collect {n} coins in one run',
       dist_run: 'Drive {n} m in one run',
@@ -218,6 +272,19 @@ export function crashPhrase() {
 
 export function buyJoke(id) {
   return dict.buyJokes[id] ?? null;
+}
+
+export function achName(id) {
+  return dict.achNames[id] ?? DICTS.en.achNames[id] ?? id;
+}
+
+export function achDesc(id) {
+  return dict.achDescs[id] ?? DICTS.en.achDescs[id] ?? id;
+}
+
+export function rankName(i) {
+  const arr = dict.rankNames ?? DICTS.en.rankNames;
+  return arr[Math.min(i, arr.length - 1)];
 }
 
 export function currentLang() {

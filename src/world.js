@@ -238,6 +238,46 @@ export function createWorld(canvas) {
     scene.add(mnt);
   }
 
+  // ---------- Дождь ----------
+
+  const RAIN_COUNT = 260;
+  const rainMesh = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(0.025, 0.9, 0.025),
+    new THREE.MeshBasicMaterial({ color: 0xa8c4e8, transparent: true, opacity: 0.34, fog: false }),
+    RAIN_COUNT
+  );
+  rainMesh.visible = false;
+  scene.add(rainMesh);
+  const rainDrops = [];
+  for (let i = 0; i < RAIN_COUNT; i++) {
+    rainDrops.push({
+      x: (rng() - 0.5) * 60,
+      y: rng() * 26,
+      z: 16 - rng() * 130,
+      v: 24 + rng() * 12,
+    });
+  }
+  let rainOn = false;
+
+  function setRain(on) {
+    rainOn = on;
+    rainMesh.visible = on;
+  }
+
+  function updateRain(dt, dz) {
+    if (!rainOn) return;
+    for (let i = 0; i < RAIN_COUNT; i++) {
+      const d = rainDrops[i];
+      d.y -= d.v * dt;
+      d.z += dz;
+      if (d.y < 0) { d.y = 24 + rng() * 4; d.x = (rng() - 0.5) * 60; }
+      if (d.z > 18) d.z -= 130;
+      tmpM.setPosition(d.x, d.y, d.z);
+      rainMesh.setMatrixAt(i, tmpM);
+    }
+    rainMesh.instanceMatrix.needsUpdate = true;
+  }
+
   // ---------- Время суток ----------
 
   let tod = 0; // 0..1, старт — закат
@@ -266,8 +306,9 @@ export function createWorld(canvas) {
     skyTex.needsUpdate = true;
 
     scene.fog.color.copy(lerpColor(A.fog, B.fog, k));
-    hemi.intensity = A.hemi + (B.hemi - A.hemi) * k;
-    dir.intensity = A.dir + (B.dir - A.dir) * k;
+    const dim = rainOn ? 0.72 : 1; // под дождём пасмурнее
+    hemi.intensity = (A.hemi + (B.hemi - A.hemi) * k) * dim;
+    dir.intensity = (A.dir + (B.dir - A.dir) * k) * dim;
     dir.color.copy(lerpColor(A.dirCol, B.dirCol, k));
     groundMat.color.copy(lerpColor(A.ground, B.ground, k));
     mountainMat.color.copy(lerpColor(A.mount, B.mount, k));
@@ -306,6 +347,7 @@ export function createWorld(canvas) {
       b.position.z += dz;
       if (b.position.z > 34) b.position.z -= 560 + Math.random() * 120;
     }
+    updateRain(dt, dz);
   }
 
   function onResize() {
@@ -335,6 +377,7 @@ export function createWorld(canvas) {
     renderer, scene, camera, update, onResize, setQuality,
     getNight: () => night,
     setOncomingVisible: (on) => { oncomingLine.material.opacity = on ? 0.9 : 0; },
+    setRain,
     // Для скриптов скриншотов: 0 закат, 0.25 ночь, 0.5 рассвет, 0.75 день
     _setTod: (v) => { tod = v; applyTimeOfDay(0); },
   };
