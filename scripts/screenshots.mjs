@@ -1,7 +1,8 @@
-// Магазинные скриншоты через Playwright → publish/screenshots/<lang>/*.png (1080×1920).
-// Использует УЖЕ ЗАПУЩЕННЫЙ dev-сервер (:5173). Язык через SHOT_LANG=ru|en (по умолч. оба).
-//   node scripts/screenshots.mjs            → ru и en
-//   SHOT_LANG=en node scripts/screenshots.mjs
+// Магазинные скриншоты через Playwright → publish/screenshots/<lang>/<layout>/*.png.
+// Мобильные 1080×1920 (портрет) и десктопные 1920×1080 (ландшафт), языки ru+en.
+// Использует УЖЕ ЗАПУЩЕННЫЙ dev-сервер (:5173).
+//   node scripts/screenshots.mjs                → всё (2 языка × 2 лэйаута)
+//   SHOT_LANG=en SHOT_LAYOUT=desktop node scripts/screenshots.mjs
 // Игра открывается с ?debug — main.js публикует window.__ttd для управления сценами.
 import { chromium } from 'playwright'
 import { homedir } from 'node:os'
@@ -12,6 +13,13 @@ import { fileURLToPath } from 'node:url'
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const BASE = process.env.URL || 'http://localhost:5173/'
 const LANGS = process.env.SHOT_LANG ? [process.env.SHOT_LANG] : ['ru', 'en']
+const LAYOUTS = process.env.SHOT_LAYOUT
+  ? [process.env.SHOT_LAYOUT]
+  : ['mobile', 'desktop']
+const VIEWPORTS = {
+  mobile: { width: 540, height: 960 },   // ×2 = 1080×1920
+  desktop: { width: 960, height: 540 },  // ×2 = 1920×1080
+}
 
 const CACHE = join(homedir(), 'Library/Caches/ms-playwright')
 const CANDIDATES = [
@@ -26,9 +34,10 @@ const browser = await chromium.launch({
 })
 
 for (const lang of LANGS) {
-  const OUT = join(ROOT, 'publish/screenshots', lang)
+for (const layout of LAYOUTS) {
+  const OUT = join(ROOT, 'publish/screenshots', lang, layout)
   mkdirSync(OUT, { recursive: true })
-  const page = await browser.newPage({ viewport: { width: 540, height: 960 }, deviceScaleFactor: 2 })
+  const page = await browser.newPage({ viewport: VIEWPORTS[layout], deviceScaleFactor: 2 })
   await page.goto(`${BASE}?lang=${lang}&debug=1`, { waitUntil: 'load' })
   await page.waitForFunction(() => window.__ttd, { timeout: 30000 })
   await page.waitForTimeout(1500)
@@ -36,7 +45,7 @@ for (const lang of LANGS) {
   const shot = (name) => page.screenshot({ path: join(OUT, `${name}.png`) })
   const toMenu = async () => { await page.evaluate(() => window.__ttd.goMenu(false)); await page.waitForTimeout(700) }
 
-  // 0) меню с логотипом и рангом (немного XP для живости бейджа)
+  // 0) меню с логотипом и рангом
   await page.evaluate(() => {
     localStorage.removeItem('turbo-traffic-3d-save')
     document.getElementById('tutorial-hint').classList.remove('show')
@@ -129,7 +138,9 @@ for (const lang of LANGS) {
   await shot('07_gameover')
 
   await page.close()
-  console.log(`✓ ${lang}: скриншоты в publish/screenshots/${lang}/ (1080×1920)`)
+  const size = layout === 'mobile' ? '1080×1920' : '1920×1080'
+  console.log(`✓ ${lang}/${layout}: скриншоты в publish/screenshots/${lang}/${layout}/ (${size})`)
+}
 }
 
 await browser.close()
