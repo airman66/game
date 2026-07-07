@@ -38,6 +38,8 @@ export async function initSDK() {
 }
 
 export function getLanguage() {
+  const forced = new URLSearchParams(location.search).get('lang');
+  if (forced) return forced;
   return ysdk?.environment?.i18n?.lang || (navigator.language || 'en').slice(0, 2);
 }
 

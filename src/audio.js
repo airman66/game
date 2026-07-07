@@ -302,6 +302,7 @@ export function createSiren(kind) { // 'police' | 'wail'
   osc.start();
   let t = 0;
   let stopped = false;
+  let muted = false;
   return {
     update(dt, dist, doppler = 1) {
       if (stopped) return;
@@ -311,7 +312,12 @@ export function createSiren(kind) { // 'police' | 'wail'
         : 620 + 260 * Math.abs(Math.sin(t * 2.2));
       osc.frequency.value = base * doppler;
       const vol = Math.max(0, 0.11 * (1 - dist / 130));
-      g.gain.setTargetAtTime(soundOn ? vol : 0, ctx.currentTime, 0.08);
+      g.gain.setTargetAtTime(soundOn && !muted ? vol : 0, ctx.currentTime, 0.08);
+    },
+    setMuted(m) {
+      if (stopped) return;
+      muted = m;
+      if (m) g.gain.setTargetAtTime(0, ctx.currentTime, 0.08);
     },
     stop() {
       if (stopped) return;

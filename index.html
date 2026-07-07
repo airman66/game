@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="theme-color" content="#0b1026" />
-  <title>Turbo Traffic 3D</title>
+  <title>Турбо Трафик 3D</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ctext y='26' font-size='26'%3E%F0%9F%8F%8E%3C/text%3E%3C/svg%3E" />
   <script type="module" src="./src/main.js"></script>
 </head>
@@ -15,7 +15,7 @@
   <!-- Экран загрузки -->
   <div id="screen-loading" class="screen visible">
     <div class="loading-inner">
-      <div class="game-logo"><span class="logo-turbo">TURBO</span><span class="logo-traffic">TRAFFIC</span><span class="logo-3d">3D</span></div>
+      <div class="game-logo"><span class="logo-turbo" data-i18n="logoTop">ТУРБО</span><span class="logo-traffic" data-i18n="logoMid">ТРАФИК</span><span class="logo-3d">3D</span></div>
       <div class="progress-track"><div id="loading-bar" class="progress-fill"></div></div>
       <div id="loading-text" class="loading-text">0%</div>
     </div>
@@ -29,7 +29,7 @@
       <button id="btn-settings" class="icon-btn" aria-label="settings">&#9881;</button>
     </div>
     <div class="menu-center">
-      <div class="game-logo" id="menu-logo"><span class="logo-turbo">TURBO</span><span class="logo-traffic">TRAFFIC</span><span class="logo-3d">3D</span></div>
+      <div class="game-logo" id="menu-logo"><span class="logo-turbo" data-i18n="logoTop">ТУРБО</span><span class="logo-traffic" data-i18n="logoMid">ТРАФИК</span><span class="logo-3d">3D</span></div>
       <button id="btn-play" class="big-btn play-btn"><span data-i18n="play"></span></button>
       <div class="mode-row">
         <button id="btn-sprint" class="mode-btn"><span class="mode-ico">&#9201;</span><span data-i18n="modeSprint"></span></button>
@@ -91,7 +91,7 @@
     <div class="hud-top">
       <div class="hud-left">
         <div class="hud-score"><span id="hud-score">0</span></div>
-        <div class="hud-speed"><span id="hud-speed">0</span> <span class="hud-speed-unit">km/h</span></div>
+        <div class="hud-speed"><span id="hud-speed">0</span> <span class="hud-speed-unit" data-i18n="kmh">км/ч</span></div>
         <div id="hud-timer" class="hud-timer">90</div>
       </div>
       <div class="hud-right">
@@ -100,6 +100,7 @@
       </div>
     </div>
     <div id="hud-mult" class="hud-mult">x2</div>
+    <div id="tutorial-hint" class="tutorial-hint"></div>
     <div id="hud-toast" class="hud-toast"></div>
     <div id="powerup-bar" class="powerup-bar"></div>
     <button id="btn-horn" class="round-btn horn-btn">&#128226;</button>

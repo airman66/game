@@ -19,6 +19,7 @@ const DEFAULTS = {
   lastDaily: '',
   dailyStreak: 0,
   konami: false,
+  tutorialSeen: false,
 };
 
 let state = { ...DEFAULTS };

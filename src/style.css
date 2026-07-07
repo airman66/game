@@ -151,7 +151,8 @@ html, body {
 }
 .menu-top .stat-chip:last-of-type { margin-right: auto; }
 .menu-center { display: flex; flex-direction: column; align-items: center; }
-.menu-hint { color: var(--muted); font-size: 14px; text-align: center; padding-bottom: 6px; }
+/* Нижний отступ — чтобы sticky-баннер Яндекса не перекрывал подсказку */
+.menu-hint { color: var(--muted); font-size: 14px; text-align: center; padding-bottom: 6px; margin-bottom: 54px; }
 
 .mode-row { display: flex; gap: 8px; margin-top: 8px; width: min(88vw, 340px); }
 .mode-btn {
@@ -336,6 +337,27 @@ html, body {
   100% { transform: translateX(-50%) translateY(-10px) scale(1.05); }
 }
 
+/* Подсказка управления в первом заезде */
+.tutorial-hint {
+  position: absolute;
+  top: 38%;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 88vw;
+  text-align: center;
+  background: var(--panel);
+  border: 2px solid var(--cyan);
+  border-radius: 14px;
+  padding: 12px 20px;
+  font-size: clamp(14px, 4vw, 18px);
+  font-weight: 800;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s;
+  box-shadow: 0 0 24px rgba(53, 224, 255, 0.35);
+}
+.tutorial-hint.show { opacity: 1; }
+
 .powerup-bar {
   position: absolute; bottom: calc(18px + var(--sab)); left: 50%;
   transform: translateX(-50%);
@@ -395,6 +417,7 @@ html, body {
 
 .ad-btn { border-color: rgba(126, 224, 129, 0.4); }
 .ad-btn.hidden { display: none; }
+.ad-btn:disabled { opacity: 0.4; pointer-events: none; }
 
 /* ---------- Задания ---------- */
 .missions-list { width: 100%; display: flex; flex-direction: column; gap: 10px; margin-bottom: 6px; }

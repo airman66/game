@@ -114,12 +114,27 @@ function startRun(modeId) {
   ui.hud.setSpeed(0);
   ui.hud.setNitro(0, false);
   ui.hud.setPowerups({ magnet: 0, x2: 0, shield: false });
-  ui.hud.setTimer(0, (MODES[modeId]?.time ?? 0) > 0);
+  const modeTime = MODES[modeId]?.time ?? 0;
+  ui.hud.setTimer(modeTime, modeTime > 0);
   ui.hud.setMobileButtons(ysdk.isMobile());
   ui.showScreens('hud');
   ysdk.hideBanner();
   playMusic(MODES[modeId]?.music ?? 'race1');
   game.startRun(modeId);
+  showTutorialOnce();
+}
+
+// Первый заезд: крупная подсказка про управление под текущее устройство
+let tutorialTimer = 0;
+
+function showTutorialOnce() {
+  if (getSave().tutorialSeen) return;
+  updateSave({ tutorialSeen: true });
+  const el = document.getElementById('tutorial-hint');
+  el.textContent = t(ysdk.isMobile() ? 'hintMobile' : 'hintDesktop');
+  el.classList.add('show');
+  clearTimeout(tutorialTimer);
+  tutorialTimer = setTimeout(() => el.classList.remove('show'), 6000);
 }
 
 function pauseGame() {
@@ -189,15 +204,27 @@ function maybeInterstitial() {
 // ---------- Кнопки ----------
 
 function bindUI() {
-  const on = (id, fn) => document.getElementById(id).addEventListener('click', () => { sfx.click(); fn(); });
+  // blur: иначе после клика мышью кнопка остаётся в фокусе и Пробел/Enter
+  // в заезде «нажимает» её снова (рестарт посреди игры)
+  const on = (id, fn) => {
+    const el = document.getElementById(id);
+    el.addEventListener('click', () => { el.blur(); sfx.click(); fn(); });
+  };
 
   on('btn-play', () => startRun('classic'));
   on('btn-sprint', () => startRun('sprint'));
   on('btn-rampage', () => startRun('rampage'));
 
+  const refreshGarageAdBtn = () => {
+    const btn = document.getElementById('btn-garage-ad');
+    const left = 120_000 - (Date.now() - lastGarageAdAt);
+    btn.disabled = left > 0;
+    if (left > 0) setTimeout(refreshGarageAdBtn, Math.min(left + 50, 5000));
+  };
   on('btn-garage', () => {
     uiState = 'garage';
     ui.buildGarage((carId) => game.setPlayerCar(carId));
+    refreshGarageAdBtn();
     ui.showScreens('screen-garage');
   });
   on('btn-garage-back', () => goMenu(false));
@@ -210,6 +237,7 @@ function bindUI() {
       flushSave();
       sfx.daily();
       ui.buildGarage((carId) => game.setPlayerCar(carId));
+      refreshGarageAdBtn();
     }
   });
 
@@ -318,6 +346,8 @@ function grantCheat() {
 
 function bindInput() {
   window.addEventListener('keydown', (e) => {
+    // Игровые клавиши не должны скроллить страницу/активировать кнопки
+    if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
     // Конами-код в меню
     if (uiState === 'menu') {
       konamiPos = e.code === KONAMI[konamiPos] ? konamiPos + 1 : (e.code === KONAMI[0] ? 1 : 0);
@@ -345,11 +375,11 @@ function bindInput() {
     if (logoTaps >= 7) { logoTaps = 0; grantCheat(); }
   });
 
-  // Свайпы: руль (гориз.) и нитро (вверх)
+  // Тач: свайп — руль (гориз.) и нитро (вверх), короткий тап по краю — тоже руль
   let swipe = null;
   window.addEventListener('pointerdown', (e) => {
     if (uiState !== 'running' || e.target?.closest?.('button')) return;
-    swipe = { x: e.clientX, y: e.clientY, usedY: false };
+    swipe = { x: e.clientX, y: e.clientY, t: performance.now(), moved: false, usedY: false };
   });
   window.addEventListener('pointermove', (e) => {
     if (!swipe || uiState !== 'running') return;
@@ -357,13 +387,21 @@ function bindInput() {
     const dy = e.clientY - swipe.y;
     if (Math.abs(dx) > 26 && Math.abs(dx) > Math.abs(dy) * 1.2) {
       game.steer(dx > 0 ? 1 : -1);
-      swipe = { x: e.clientX, y: e.clientY, usedY: swipe.usedY };
+      swipe = { ...swipe, x: e.clientX, y: e.clientY, moved: true };
     } else if (!swipe.usedY && dy < -60 && Math.abs(dy) > Math.abs(dx) * 1.4) {
       swipe.usedY = true;
+      swipe.moved = true;
       game.nitro();
     }
   });
-  window.addEventListener('pointerup', () => { swipe = null; });
+  window.addEventListener('pointerup', (e) => {
+    if (swipe && !swipe.moved && uiState === 'running' && performance.now() - swipe.t < 320) {
+      const k = e.clientX / window.innerWidth;
+      if (k < 0.45) game.steer(-1);
+      else if (k > 0.55) game.steer(1);
+    }
+    swipe = null;
+  });
   window.addEventListener('pointercancel', () => { swipe = null; });
 }
 

@@ -488,7 +488,7 @@ export function createGame(canvas, hooks) {
     if (S.mode === 'running') {
       S.mode = 'paused';
       stopEngine();
-      for (const t of traffic) t.siren?.stop();
+      for (const t of traffic) t.siren?.setMuted(true);
     }
   }
 
@@ -496,6 +496,7 @@ export function createGame(canvas, hooks) {
     if (S.mode === 'paused') {
       S.mode = 'running';
       startEngine();
+      for (const t of traffic) t.siren?.setMuted(false);
     }
   }
 
@@ -647,6 +648,7 @@ export function createGame(canvas, hooks) {
     // Трафик
     for (const t of traffic) {
       if (!t.alive) continue;
+      const prevZ = t.obj.position.z;
       t.obj.position.z += (eff - t.v) * dt;
       // Шараханье от гудка
       if (t.dodgeT > 0) {
@@ -667,7 +669,11 @@ export function createGame(canvas, hooks) {
       }
       const pz = t.obj.position.z;
       const pdx = Math.abs(t.obj.position.x - playerCar.position.x);
-      if (Math.abs(pz) < t.half.z + playerHalf.z && pdx < t.half.x + playerHalf.x) {
+      const zThresh = t.half.z + playerHalf.z;
+      // На низком FPS быстрая машина может перескочить зону игрока за один кадр —
+      // проверяем и пересечение отрезка [prevZ, pz] с зоной столкновения.
+      const tunneled = prevZ < -zThresh && pz > zThresh;
+      if ((Math.abs(pz) < zThresh || tunneled) && pdx < t.half.x + playerHalf.x) {
         if (S.nitroT > 0 || S.cfg.invuln) {
           // ТАРАН
           t.alive = false;

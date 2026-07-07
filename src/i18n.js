@@ -2,6 +2,10 @@
 
 const DICTS = {
   ru: {
+    gameTitle: 'Турбо Трафик 3D',
+    logoTop: 'ТУРБО',
+    logoMid: 'ТРАФИК',
+    kmh: 'км/ч',
     play: 'Играть',
     modeClassic: 'Классика',
     modeSprint: 'Спринт',
@@ -48,8 +52,8 @@ const DICTS = {
     sndQuality: 'Графика',
     qAuto: 'Авто',
     qLow: 'Эконом',
-    hintDesktop: '← → — руль · W — нитро · G — гудок',
-    hintMobile: 'Свайпы — руль · кнопки — нитро и гудок',
+    hintDesktop: '← → — руль · Пробел — нитро · G — гудок',
+    hintMobile: 'Тап по краям или свайп — руль · кнопки — нитро и гудок',
     sprintTimer: 'Время',
     crashPhrases: [
       'Кто так ездит?!',
@@ -87,6 +91,10 @@ const DICTS = {
     },
   },
   en: {
+    gameTitle: 'Turbo Traffic 3D',
+    logoTop: 'TURBO',
+    logoMid: 'TRAFFIC',
+    kmh: 'km/h',
     play: 'Play',
     modeClassic: 'Classic',
     modeSprint: 'Sprint',
@@ -133,8 +141,8 @@ const DICTS = {
     sndQuality: 'Graphics',
     qAuto: 'Auto',
     qLow: 'Eco',
-    hintDesktop: '← → steer · W nitro · G horn',
-    hintMobile: 'Swipe to steer · buttons for nitro & horn',
+    hintDesktop: '← → steer · Space nitro · G horn',
+    hintMobile: 'Tap edges or swipe to steer · buttons for nitro & horn',
     sprintTimer: 'Time',
     crashPhrases: [
       'Who drives like that?!',
@@ -180,6 +188,7 @@ export function setLanguage(lang) {
   langCode = ['en'].includes(lang) ? 'en' : (['ru', 'be', 'kk', 'uk', 'uz', 'az', 'hy', 'ka', 'ky', 'tg', 'tk', 'mo'].includes(lang) ? 'ru' : 'en');
   dict = DICTS[langCode];
   document.documentElement.lang = langCode;
+  document.title = dict.gameTitle;
   for (const el of document.querySelectorAll('[data-i18n]')) {
     el.textContent = t(el.dataset.i18n);
   }
