@@ -68,6 +68,11 @@ async function boot() {
   // Обязательный сигнал: игра готова
   ysdk.loadingReady();
 
+  // Дебаг-хук для скриптов скриншотов (scripts/screenshots.mjs), только с ?debug
+  if (new URLSearchParams(location.search).has('debug')) {
+    window.__ttd = { game, startRun, gameOver: handleGameOver, goMenu };
+  }
+
   // Музыка и звуковые файлы грузятся в фоне, не задерживая старт
   preloadAudioFiles();
 

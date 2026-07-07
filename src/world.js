@@ -335,6 +335,8 @@ export function createWorld(canvas) {
     renderer, scene, camera, update, onResize, setQuality,
     getNight: () => night,
     setOncomingVisible: (on) => { oncomingLine.material.opacity = on ? 0.9 : 0; },
+    // Для скриптов скриншотов: 0 закат, 0.25 ночь, 0.5 рассвет, 0.75 день
+    _setTod: (v) => { tod = v; applyTimeOfDay(0); },
   };
 }
 
